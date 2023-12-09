@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>My First Website</title>
+  <link rel="shortcut icon" href=”../images/vfx-logo.png”> 
+  <link rel="stylesheet" href="../styles.css">
+  <script type="module" src="https://md-block.verou.me/md-block.js"></script>
+</head>
+
+<div style="background-color: white; background-size: cover; height:380px; padding-top:20px; text-align: center;">
+    <h1 style="font-size:32px; color:black; margin:10px;">Elad Damian Nachman</h1>
+    <img src="../images/vfx-logo-animation.gif" style="height:250px; border-radius: 50%; " alt="vfx logo">
+    <p style="font-size: 20px; color:#1F9AFE; margin: 10px;">
+        <a href="https://github.com/eldnach?tab=repositories">Github</a>
+        <a href="https://dn3d.artstation.com/">ArtStation</a>
+        <a href="https://www.shadertoy.com/user/lerping/sort=newest">ShaderToy</a>
+        <a href="/posts/hmi.html">HMI</a>
+        <a href="https://www.linkedin.com/in/eldnach/">LinkedIn</a>
+    </p>
+</div>
+
+<div class="row">
+    <div class="leftcolumn">
+        <div class= "post">
+            <md-block>
+                # Docker web server configuration for Unity Web Players
+
+                A simple guide for utilizing Docker and Nginx in order locally host and develop Unity Web Players.
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/docker-nginx-unity.png?raw=true" alt="WebPlayer">
+                </p
+                
+                This sample modifies the Nginx server configuration file (`nginx.conf`), in order to serve Unity's (gzip/brotli) precompressed files and accelerate loading times:
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/nginx-config.png?raw=true" alt="WebPlayer">
+                </p>
+                
+                ## Instructions
+                Before starting, please verify that Docker is installed and running (https://docs.docker.com/get-docker/).
+                
+                Create and navigate to a new project folder. Copy the contents of this repostiory to the root of your newly created project folder.
+                
+                [Optional] Rename the docker file (`project/docker/project-name.Dockerfile`) and edit the docker-compose file to match the new project name (`project/docker-compose.yml`)
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/docker-compose.png?raw=true" alt="DockerCompose">
+                </p>
+                
+                To reduce application loading times, ensure that Brotli/Gzip compression is enabled in your Unity project's Player Settings (`ProjectSettings -> Player -> Publishing Settings -> Compression Format`), and that "Decompression Fallback" is disabled:
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/player-settings.png?raw=true" alt="PlayerSettings">
+                </p>
+                
+                This repositry includes a sample Unity Player at the webplayer directory (`projet/webplayer`). To overrwrite the project, Build a Unity Web Player and copy the build folder's contents to this directory.
+                
+                Once the web player folder is ready, open a terminal at the project's root, and build a docker image using the following command: `docker build -t <project-name>:local -f docker/<project-name>.Dockerfile .`
+                
+                Print and copy the docker image ID using the `docker images` command:
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/docker-images.png?raw=true" alt="Docker Images">
+                </p>
+                
+                Run the docker container using the newly built docker image via the following command: `docker run -p 127.0.0.1:<host-port>:<container-port> <image-id>`.
+                
+                Once the docker container is running, open a web browser and navigate to `127.0.0.1:<host-port>` in order to launch the web player:
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/web-player.png?raw=true" alt="WebPlayer">
+                </p>
+                
+                Note: You can open the developer tools in order to verify that Unity pre-compressed files have been served with the correct `Content-Encoding` header (gzip/br):
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/content-encoding.png?raw=true" alt="WebPlayer">
+                </p>
+                  
+            </md-block>     
+        </div>
+    </div>
+    <div class="rightcolumn">
+      <div class="card">
+          <h2>About Me</h2>
+          <p>Realtime graphics enthusiant, currently working as a Technical Product Manager for Unity3D</p>
+          <p>In this blog, I share some useful tools and personal projects to assist with Unity and realtime graphics development.</p
+      </div>
+      <div class="card">
+          <h3>Posts</h3>
+          <div class="postsummary">
+              <a href="/posts/shadervarianttracing.html">Shader Variant Tracing and Anlysis</a>
+          </div><br>
+          <div class="postsummary">
+              <a href="/posts/shaderperformancemetrics.html">Shader Performance Metrics</a>
+          </div><br>
+          <div class="postsummary">
+              <a href="/posts/noisekit.html">Procedural Noise Generation</a>
+          </div><br>
+          <div class="postsummary">
+              <a href="/posts/dockernginxunity.html">Docker/Nginx Server for Unity Players</a>
+          </div><br>
+      </div>
+  </div>
+</div>
+
+</html>v

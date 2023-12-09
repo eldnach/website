@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eldnach — UI Defrag and Batch</title>
+  <link rel="shortcut icon" type="image/png" href="images/vfx-logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="https://md-block.verou.me/md-block.js"></script>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <span class="prompt">$</span>
+    <span class="name">Elad Damian Nachman</span>
+    <span class="email">nachd1337gmail.com</span>
+  </div>
+
+  <div class="layout">
+
+    <nav class="sidebar">
+      <div class="sidebar-title">~/articles</div>
+      <ul id="article-list">
+        <li><a href="index.html">Neural Temporal Upscaling</a></li>
+        <li><a href="neural-lod.html">Neural LOD Selector</a></li>
+        <li><a href="ui-defrag.html" class="active">UI Defrag and Batch</a></li>
+        <li><a href="edge-detection.html">Edge Detection</a></li>
+        <li><a href="procedural-vfx.html">Procedural VFX Demo</a></li>
+        <li><a href="urp-raytraced-shadows.html">URP Ray Traced Shadows</a></li>
+        <li><a href="volumetric-textures.html">Volumetric Textures</a></li>
+        <li><a href="indirect-rendering.html">Indirect Rendering</a></li>
+        <li><a href="shader-variant-analysis.html">Shader Variant Analysis</a></li>
+        <li><a href="shader-performance-metrics.html">Shader Performance Metrics</a></li>
+        <li><a href="docker-web-server.html">Docker Web Server for Unity</a></li>
+      </ul>
+    </nav>
+
+    <main class="content">
+
+      <div class="post active">
+        <md-block>
+# UI Defragmentation and Batching
+
+UI layout can have a big impact on Unity's ability to batch renderers. Unity's batcher must respect the hierarchy to avoid breaking the render order. Non-overlapping UI elements can be batched by material. But tiny pixel overlaps can easily break this batching! At which point, the order matters a lot.
+
+I used a simple script to "defragment" a given UI panel and it's child elements. Looking at the element's rect transform and atlas, we can re-order elements to improve batching.  Before re-ordering the elements, we see over 100 draw calls:
+
+<p align="left">
+  <img width="80%" src="https://github.com/eldnach/defragment-ui/blob/main/.github/images/fragmented.gif?raw=true" alt="Fragmented">
+</p>
+
+
+After a simple re-ordering, we can draw all sprites with just 2 draw calls:
+<p align="left">
+  <img width="80%" src="https://github.com/eldnach/defragment-ui/blob/main/.github/images/de-fragmented.gif?raw=true" alt="De-Fragmented">
+</p>
+
+To learn more, check the Github repo: <a href="https://github.com/eldnach/defragment-ui">https://github.com/eldnach/defragment-ui</a>
+        </md-block>
+      </div>
+
+    </main>
+  </div>
+
+</body>
+
+</html>

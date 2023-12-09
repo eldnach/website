@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eldnach — Neural Temporal Upscaling</title>
+  <link rel="shortcut icon" type="image/png" href="images/vfx-logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="https://md-block.verou.me/md-block.js"></script>
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['\\(', '\\)']], displayMath: [['\\[', '\\]']] },
+      chtml: { scale: 2 },
+      options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'] }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js" async></script>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <span class="prompt">$</span>
+    <span class="name">Elad Damian Nachman</span>
+    <span class="email">nachd1337gmail.com</span>
+  </div>
+
+  <div class="layout">
+
+    <nav class="sidebar">
+      <div class="sidebar-title">~/articles</div>
+      <ul id="article-list">
+        <li><a href="index.html" class="active">Neural Temporal Upscaling</a></li>
+        <li><a href="neural-lod.html">Neural LOD Selector</a></li>
+        <li><a href="ui-defrag.html">UI Defrag and Batch</a></li>
+        <li><a href="edge-detection.html">Edge Detection</a></li>
+        <li><a href="procedural-vfx.html">Procedural VFX Demo</a></li>
+        <li><a href="urp-raytraced-shadows.html">URP Ray Traced Shadows</a></li>
+        <li><a href="volumetric-textures.html">Volumetric Textures</a></li>
+        <li><a href="indirect-rendering.html">Indirect Rendering</a></li>
+        <li><a href="shader-variant-analysis.html">Shader Variant Analysis</a></li>
+        <li><a href="shader-performance-metrics.html">Shader Performance Metrics</a></li>
+        <li><a href="docker-web-server.html">Docker Web Server for Unity</a></li>
+      </ul>
+    </nav>
+
+    <main class="content">
+
+      <div class="post active">
+        <h1>Neural Temporal Upscaling</h1>
+
+        <p class="lead">This article recaps my journey to implement a <strong>machine-learning upscaler</strong> for realtime renderers and game engines. I will share the challenges encountered along the way, and various tips and tricks to optimize the model's training and inference.</p>
+
+        <p>By training the model using temporal rendering data, we are able to reconstruct and accumulate sub-pixel data across frames, and generate a crisp image in higher resolution:</p>
+
+        <figure>
+          <img width="100%" src="images/sponza-upscale.png" alt="Sponza upscale">
+          <figcaption>Sponza: 1080p rendering upsampled to 4K /w neural upscaling (x3 zoom)</figcaption>
+        </figure>
+
+        <p>This approach uses a hybrid architecture that extracts latent features in low resolution, then performs a high-resolution reconstruction pass guided by a full-res G-buffer. By anchoring the network to high-res geometry and material data, we are able to extract sharp details and ensure that textures and edges remain crisp and stable:</p>
+
+        <figure>
+          <img width="100%" src="images/sponza-poles.png" alt="Sponza poles">
+          <figcaption>Antialiasing comparison: bilinear (left) and neural upscaling (right)</figcaption>
+        </figure>
+
+        <h2>Low resolution feature extraction</h2>
+
+        <p>The network first reads the model's inputs (LR color + depth) and runs them through a 2-level (three-scale) encoder/decoder operating at low resolution:</p>
+
+        <ol>
+          <li>The initial encoder layer applies a 3×3 convolution to produce 8 hidden features, then a 2×2 average-pool halves the resolution.</li>
+          <li>The second encoder layer (3×3) produces 8 hidden features, then applies another 2×2 average-pool, reducing the resolution to a quarter of the input.</li>
+          <li>The bottleneck convolution layer produces 8 hidden features at the coarsest scale (quarter resolution).</li>
+          <li>The network then upsamples the hidden features back to input resolution. Each upsampling step adds a residual skip connection from the matching encoder level, preserving high-frequency edge detail before a decoder convolution.</li>
+        </ol>
+
+        <figure>
+          <img width="90%" src="images/feature-extracton.png" alt="Feature extraction">
+          <figcaption>Feature extraction</figcaption>
+        </figure>
+
+        <p>All convolutions use a 3×3 kernel with a ReLU activation. The pooling pyramid gives the network multi-scale spatial context while keeping cost low: the deeper convolutions run at half and quarter resolution, so only the two outermost convolutions touch full (LR) resolution. The output of this pass is a low-resolution feature map (width × height × 8) that captures the relevant characteristics of the input image at multiple scales.</p>
+
+        <h2>High-resolution frame reconstruction</h2>
+
+        <p>The next pass reads the 8 low-res features and upsamples them to screen resolution with a jitter-aware ×2 upsample. We negate the sub-pixel jitter offset from our pixel coordinate to minimize flickering and stabilize our reconstruction.</p>
+
+        <p>A high-resolution 3×3 convolution layer reads the following inputs:</p>
+
+        <ul>
+          <li>8 upsampled low-resolution features</li>
+          <li>Motion-warped color history</li>
+          <li>Per-frame jitter offset</li>
+          <li>Temporal-displacement factor</li>
+          <li>Sharpen factor</li>
+          <li>High resolution G-buffer</li>
+        </ul>
+
+        <p>The layer outputs 4 channels: Y, Co, Cg and A. The first 3 channels represent our pixel's luminance and chrominance (more details on this in the "Color Space" section). 'A' represents the temporal accumulation blend factor of our model.</p>
+
+        <figure>
+          <img width="100%" src="images/frame-recon.png" alt="Frame reconstruction">
+          <figcaption>Frame reconstruction</figcaption>
+        </figure>
+
+        <p><strong>Note:</strong> this model modifies the deferred pipeline to render a full resolution target for the geometry (G-buffer) pass. All other render passes including the deferred lighting pass are kept at half resolution. The high resolution G-buffer is used as a guide to help our network reconstruct fine details and better preserve the underyling geometry.</p>
+
+        <figure>
+          <img width="90%" src="images/hairball-border.gif" alt="G-buffer guided borders">
+        </figure>
+
+        <h2>Temporal accumulation and blending</h2>
+
+        <p>Similarly to other temporal upscalers, we sample the history buffer using the motion vector offset. Subtracting the motion vector offset from the screen coordinates will negate camera motion, and ensure we are sampling the history buffer at the previous frame's pixel coordinates.</p>
+
+        <p>The final step will accumulate the model's reconstruction on top of previous frames. Blending a percentage of the reconstruction and warped history buffer, using the network's machine-learned blend factor 'a'. This allows our network to gradually refine the image across multiple frames, building up sub-pixel data at different jitter offsets.</p>
+
+        <pre><code>float3 Accumulate(float3 R, float3 H, float a, bool hasHistory)
+{
+    // Learned blend weight α
+    // No history (first frame / disocclusion) α = 0, output is pure reconstruction.
+    float alpha = hasHistory ? alphaMax * sigmoid(a) : 0.0;
+
+    //  out = α·history + (1−α)·reconstruction
+    float3 outY;
+    outY.x = alpha * H.x + (1.0 - alpha) * R.x;   // luminance Y
+    outY.y = alpha * H.y + (1.0 - alpha) * R.y;   // chrominance Co
+    outY.z = alpha * H.z + (1.0 - alpha) * R.z;   // chrominance Cg
+    return outY;   // becomes next frame's history;
+}</code></pre>
+
+        <p>Our network learns and outputs a machine-learned luma sharpening factor, which we apply on top of the temporal accumulation:</p>
+
+        <pre><code>float dY  = R.x - H.x;                            // luma delta vs history
+float amt = sigmoid(learnedGain) * smoothstep(GATE_LO, GATE_HI, abs(dY));
+outY.x = saturate(alpha * H.x + (1.0 - alpha) * R.x + dY * amt);   // luminance + sharpen</code></pre>
+
+        <p>Across multiple frames, our network will temporally accumulate newly reconstructed subsamples on top of the history buffer, extracting detail and generating sharp and crisp edges:</p>
+
+        <figure>
+          <img width="100%" src="images/foliage.png" alt="Foliage">
+          <figcaption>Foliage upscaling (bilinear vs neural)</figcaption>
+        </figure>
+
+        <h2>Color space</h2>
+
+        <p>Instead of teaching our network to output 3 different color channels, we can simplify the training process by transforming our input into the YCoCg color space. 'Y' encodes our pixel's luminance, while 'Co' and 'Cg' encode our pixel's orange and green chrominance. The YCoCg encoding is applied using the following matrix:</p>
+
+        <div class="eq-small">
+        \[
+        \begin{bmatrix} Y \\ Co \\ Cg \end{bmatrix} =
+        \begin{bmatrix} 1/4 & 1/2 & 1/4 \\ 1/2 & 0 & -1/2 \\ -1/4 & 1/2 & -1/4 \end{bmatrix}
+        \begin{bmatrix} R \\ G \\ B \end{bmatrix}
+        \]
+        </div>
+
+        <p>The network will perform all feature extraction and upscaling in the YCoCg color space. Once the network's prediction is ready, we simply decode and unpack the YCoCg value back to 3 separate RGB channels, using the inverse matrix:</p>
+
+        <div class="eq-small">
+        \[
+        \begin{bmatrix} R \\ G \\ B \end{bmatrix} =
+        \begin{bmatrix} 1 & 1 & -1 \\ 1 & 0 & 1 \\ 1 & -1 & -1 \end{bmatrix}
+        \begin{bmatrix} Y \\ Co \\ Cg \end{bmatrix}
+        \]
+        </div>
+
+        <p>The main reason to do this is to reduce our network's training load. When using RGB, there is a high correlation between all three channels. A higher luminance pixel must increase the values of all three color channels. To reconstruct with proper luminance, our network must learn additional correlations across all three channels.</p>
+
+        <p>Training with RGB will also reduce the accuracy of our gradient computations. The human eye is much more sensitive to changes in luminance compared to changes in hue/color. By using YCoCg encoding, we can manually weigh the different components of our model's output, and give higher importance to changes in luminance ('Y') over changes in chrominance ('Co', 'Cg'). This will teach our model to prioritize sharper edges and detail over minute color differences:</p>
+
+        \[
+        \text{Loss} = w_Y \cdot L_1(Y) + w_{Co} \cdot L_1(Co) + w_{Cg} \cdot L_1(Cg)
+        \]
+
+        <h2>Tonemapping</h2>
+
+        <p>The upscaling network will execute prior to image post processing effects, such as tone mapping and bloom. This means our network must consume the lit color buffers in an HDR (linear) value range.</p>
+
+        <p>Training a network to perform feature extraction and upscaling in a large and unbounded range is less than ideal. The network will have to run through many training iterations, slowly increasing the kernel weights to high magnitude, so the network can output sufficiently high luminance values for intensely lit and emissive surfaces.</p>
+
+        <p>More importantly, our trainer's loss function (calculating the prediction error and loss for each training step) will produce a very high error when encountering high luminance values in our training data set. This can easily blow up our network's gradient, causing the network to overshoot and regress learning.</p>
+
+        <p>A much simpler solution is to run our network using a normalized [0,1] value range. To achieve this, we simply run our network's color inputs and outputs through a custom tonemapper.</p>
+
+        <p>We can choose the most optimal tonemapping function to best fit our content. In this example, I chose to implement a custom <strong>Reinhard-Gamma</strong> tonemapper:</p>
+
+        \[
+        E(Y) = \left[ \left( \frac{Y}{1 + Y} \right) \cdot \left( 1 + \frac{Y}{L_{max}^2} \right) \right]^{\frac{1}{\gamma}}
+        \]
+
+        <p>The upper bound (Lmax) is calculated by iterating through the training data set and extracting the brightest pixel in the HDR color target.</p>
+
+        <p>Reinhard-Gamma outputs a wide value range for darks and midtones. But as the input value gets closer to the remapper's ceiling, the output's value range begins to shrink. This will reduce our network's ability to produce very high luminance values in great precision. But since the vast majority of pixels in our training dataset lay within the dark-midtone range, this is an acceptable trade off.</p>
+
+        <p>Once our network's prediction is ready, we need to remap our value back to linear space. This is achieved by applying an inverse of the tonemapper:</p>
+
+        \[
+        Y = \frac{E^{\gamma} \cdot L_{max}^2}{L_{max}^2 - E^{\gamma}(1 + L_{max}^2)}
+        \]
+
+        <p>Another option would be to use a <strong>normalized Log</strong> tonemapper which provides a very wide range and precision for high luminance values. But this would regress image quality for dark and mid-range luminance, which is not acceptable in most cases. A third option for high-luminance content is using a more complex <strong>Hybrid-Log-Gamma</strong> (HLG) tonemapper. HLG uses a gamma curve for dark/mid-range values and switches to a logarithmic curve for high luminance. This maintains a better balance for both mid and high tones compared to normalized Log.</p>
+
+        <figure>
+          <img width="100%" src="images/tonemapping.png" alt="Tonemapping">
+          <figcaption>Tonemapping: how the different tonemappers remap linear luminance</figcaption>
+        </figure>
+
+        <h2>Capture rig</h2>
+
+        <p>To build our training pipeline, we need to first implement a training simulation and extract the needed image data from our rendering engine. This process must be done carefully to ensure there are no mismatches between our trainer and rendering pipeline. Keep a close eye on factors such as texture formats, coordinate space and orientation.</p>
+
+        <p>We start by injecting additional "capture" passes within our existing render pipeline. These passes will copy the needed buffer data from the GPU and save the captured images to disk:</p>
+
+        <ol>
+          <li>Low res color input</li>
+          <li>Low res motion vectors</li>
+          <li>High res color target</li>
+          <li>High res g-buffer guide (depth, normals, albedo)</li>
+          <li>Per-frame jittering offset</li>
+        </ol>
+
+        <p>We render our simulation using two scenarios: a fly through of our 3D environment and a static camera. The first scenario will generate a range of motion vector magnitudes by varying the camera speed throughout the capture. The second scenario uses a static camera, and will focus our network's training on sub-pixel reconstruction using the per frame jittering offset.</p>
+
+        <p>Our capture rig uses two cameras with a synchronized transformation. The first camera will capture our model's inputs, rendering all passes (except the g-buffer pass!) at half res. The second camera renders the same sequence in parallel using a full res framebuffer. This pass enables MSAAx8 and Subpixel Morphological AntiAliasing to improve the image quality.</p>
+
+        <figure>
+          <img width="90%" src="images/capture-flythrough.gif" alt="Sponza flythrough">
+          <figcaption>Left: high resolution camera (4K), Right: low resolution camera (1080p)</figcaption>
+        </figure>
+
+        <p>When using an HDR rendering pipeline, the color capture pass must be injected prior to the tonemapping and post processing pass. This allows us to extract the renderer's <em>lit color</em> using a floating point buffer format. My example implements a GPU-copy ("blit") pass, writing the data to a temporary buffer using a 16-bit per channel floating point format. The temp buffer is then serialized to disk using the tinyexr library and saved as .EXR file format.</p>
+
+        <p>We must use a lossless and high precision format for the color, motion vector and depth. But all other inputs can be captured using a lossy .png format to save disk space and memory during training. This can become crucial for larger datasets. In my example, a relatively small capture of 512 frames occupied around 35GB in storage.</p>
+
+        <p>We also record a manifest file alongside our training data. This file is loaded by the training framework to initialize training using the correct configuration. Each entry serializes a relative path to the training samples along with the frame's jitter offset:</p>
+
+        <pre><code>{
+  "scene": "Capture",
+  "frame_count": 512,
+  "hr_width": 3840,
+  "hr_height": 2160,
+  "lr_width": 1920,
+  "lr_height": 1080,
+  "downsample_factor": 2,
+  "color_space": "linear-hdr",
+  "motion_convention": "uv_current_minus_previous",
+  "jitter_units": "texel_lr_px",
+  "samples": [
+    {
+      "frame": 0,
+      "lr_color": "lr/000000.exr",
+      "hr_normal": "hr_normal/000000.png",
+      "hr_albedo": "hr_albedo/000000.png",
+      "hr_depth": "hr_depth/000000.exr",
+      "motion": "mv/000000.exr",
+      "target": "hr/000000.exr",
+      "jitter": [
+        -0.25,
+        -0.25
+      ]
+    },
+  ]
+}</code></pre>
+
+        <h2>Training engine</h2>
+
+        <p>We can train our model using robust machine learning frameworks like PyTorch and TensorFlow. In my case I found it is much more intuitive to experiment, debug and iterate using a hand-written and bare-metal trainer.</p>
+
+        <p>By implementing the trainer ourselves, we can instrument all aspects of the training loop, extracting useful data and signals to identify issues and improve our model. And by using a native graphics API such as Metal, we can easily test and optimize our model's inference alongside our trainer. Reducing the need for constant round-trips between the inference engine and training framework. This leads to a more streamlined workflow and faster iteration.</p>
+
+        <h3>Loading the data set</h3>
+
+        <p>The first task of our training engine is <strong>loading our data set</strong>. Attempting to front-load any reasonably sized data set will consume too much memory. Our training engine will quickly run OOM and crash.</p>
+
+        <p>To circumvent this, we implement a cropping data loader. Our trainer initializes by loading a quarter-view of the input data. Every 1000 training steps or so, our trainer will reload a different region of the input data set from disk. Over time, our trainer will iterate over all of our data samples:</p>
+
+        <figure>
+          <img width="100%" src="images/training-cropper.png" alt="Training crop loader">
+          <figcaption>Training crop loader</figcaption>
+        </figure>
+
+        <p>We can use the cropped data loader to train our model using a large number of high resolution frames, while keeping memory usage to a minimum.</p>
+
+        <h3>Loss and Measurement</h3>
+
+        <p>Coming soon....</p>
+
+        <ul>
+          <li>Defining the loss function</li>
+          <li>Visualizing prediction error with heatmaps</li>
+          <li>Tracking the loss trajectory (reconstruction and history loss)</li>
+          <li>Quantifying image quality (prediction and sharpness MSE)</li>
+          <li>Measuring temporal accumulation (mean weights for temporal blend factor 'a')</li>
+          <li>Analyzing feature importance</li>
+        </ul>
+      </div>
+
+    </main>
+  </div>
+
+</body>
+
+</html>

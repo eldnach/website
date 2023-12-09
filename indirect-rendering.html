@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eldnach — Indirect Rendering</title>
+  <link rel="shortcut icon" type="image/png" href="images/vfx-logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="https://md-block.verou.me/md-block.js"></script>
+</head>
+
+<body>
+
+  <div class="topbar">
+    <span class="prompt">$</span>
+    <span class="name">Elad Damian Nachman</span>
+    <span class="email">nachd1337gmail.com</span>
+  </div>
+
+  <div class="layout">
+
+    <nav class="sidebar">
+      <div class="sidebar-title">~/articles</div>
+      <ul id="article-list">
+        <li><a href="index.html">Neural Temporal Upscaling</a></li>
+        <li><a href="neural-lod.html">Neural LOD Selector</a></li>
+        <li><a href="ui-defrag.html">UI Defrag and Batch</a></li>
+        <li><a href="edge-detection.html">Edge Detection</a></li>
+        <li><a href="procedural-vfx.html">Procedural VFX Demo</a></li>
+        <li><a href="urp-raytraced-shadows.html">URP Ray Traced Shadows</a></li>
+        <li><a href="volumetric-textures.html">Volumetric Textures</a></li>
+        <li><a href="indirect-rendering.html" class="active">Indirect Rendering</a></li>
+        <li><a href="shader-variant-analysis.html">Shader Variant Analysis</a></li>
+        <li><a href="shader-performance-metrics.html">Shader Performance Metrics</a></li>
+        <li><a href="docker-web-server.html">Docker Web Server for Unity</a></li>
+      </ul>
+    </nav>
+
+    <main class="content">
+
+      <div class="post active">
+        <md-block>
+# Indirect Rendering and GPU Culling
+
+This sample implementes a procedural (indirect) Scriptable Render Pass, which is instantiated and enequeued within the Univesral Render Pipeline.
+<p align="left">
+  <img width="80%" src="https://github.com/eldnach/indirect-rendering/blob/main/.github/images/draw-indirect.gif?raw=true" alt="DrawIndirect">
+</p>
+
+Indirect Drawing allows to procedurally generate geometry and drawing parameter data using compute shaders. This technique can be used in order to massively-parallelize the transformation, culling, and rendering of complex geometries.
+
+In this example, a compute shader is used in order to procedurally generate and transform a large amount of vertices and mesh instances. A final instance-based culling dispatch is executed once per frame, in order to procedurally render any visible instances:
+
+<p align="left">
+  <img width="75%" src="https://github.com/eldnach/indirect-rendering/blob/main/.github/images/gpu-culling.gif?raw=true" alt="GPUCullling">
+</p>
+
+## Renderer Feature
+
+You can enable and configure the procedural rendering pass by adding a "Procedural Rendering Feature" to the active UniversalRenderer.asset:
+<p align="left">
+  <img width="75%" src="https://github.com/eldnach/indirect-rendering/blob/main/.github/images/renderer-feature.png?raw=true" alt="RendererFeature">
+</p>
+
+The renderer feature's settings can be used to load an input mesh, configure the per-instance mesh count, and set the total instance count. Optional heightmap, wind deformation and camera-based repulsion can be enabled.
+
+Github: <a href="https://github.com/eldnach/indirect-rendering">https://github.com/eldnach/indirect-rendering</a>
+        </md-block>
+      </div>
+
+    </main>
+  </div>
+
+</body>
+
+</html>

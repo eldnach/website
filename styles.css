@@ -1,0 +1,296 @@
+/* ===== Programmer-style dark theme ===== */
+
+:root {
+  --bg:        #0a0e14;
+  --bg-panel:  #0d1320;
+  --bg-elev:   #111827;
+  --border:    #1c2738;
+  --cyan:      #2ce0ff;
+  --cyan-dim:  #5fb3c4;
+  --cyan-deep: #0fa3c4;
+  --text:      #8fe9ff;
+  --muted:     #4d6b78;
+  --accent:    #00ffd1;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "IBM Plex Mono", "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  font-size: 14px;
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ===== Top bar ===== */
+.topbar {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 22px;
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.topbar .prompt {
+  color: var(--accent);
+}
+
+.topbar .name {
+  color: var(--cyan);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.topbar .email {
+  color: var(--muted);
+}
+
+.topbar .email::before {
+  content: "// ";
+}
+
+/* ===== Layout ===== */
+.layout {
+  display: flex;
+  align-items: stretch;
+  min-height: calc(100vh - 53px);
+}
+
+/* ===== Sidebar (article tabs) ===== */
+.sidebar {
+  width: 20%;
+  min-width: 220px;
+  max-width: 340px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--border);
+  padding: 18px 0;
+  overflow-y: auto;
+}
+
+.sidebar .sidebar-title {
+  color: var(--muted);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  padding: 0 18px 12px;
+}
+
+.sidebar ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.sidebar li a {
+  display: block;
+  padding: 7px 18px 7px 16px;
+  color: var(--cyan-dim);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.sidebar li a::before {
+  content: "› ";
+  color: var(--muted);
+}
+
+.sidebar li a:hover {
+  background: var(--bg-elev);
+  color: var(--cyan);
+}
+
+.sidebar li a.active {
+  background: var(--bg-elev);
+  color: var(--accent);
+  border-left-color: var(--accent);
+}
+
+.sidebar li a.active::before {
+  content: "▸ ";
+  color: var(--accent);
+}
+
+/* ===== Content pane ===== */
+.content {
+  width: 80%;
+  flex: 1;
+  padding: 36px 48px 80px;
+  overflow-x: hidden;
+}
+
+.post {
+  display: none;
+  max-width: 900px;
+}
+
+.post.active {
+  display: block;
+  animation: fade 0.18s ease-in;
+}
+
+@keyframes fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Markdown content styling ===== */
+md-block { display: block; }
+
+.post h1 {
+  color: var(--cyan);
+  font-size: 24px;
+  font-weight: 600;
+  margin: 0 0 24px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.post h1::before {
+  content: "# ";
+  color: var(--muted);
+}
+
+.post h2 {
+  color: var(--accent);
+  font-size: 18px;
+  margin: 32px 0 12px;
+}
+
+.post h2::before {
+  content: "## ";
+  color: var(--muted);
+}
+
+.post p { margin: 14px 0; }
+
+.post a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--cyan-deep);
+}
+
+.post a:hover {
+  color: #fff;
+  background: rgba(0, 255, 209, 0.08);
+}
+
+.post img {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.post em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.post ul, .post ol {
+  padding-left: 22px;
+}
+
+.post li { margin: 4px 0; }
+
+.post code, .post span[style] {
+  background: var(--bg-elev) !important;
+  color: var(--accent) !important;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: inherit;
+}
+
+/* Block code listings */
+.post pre {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 16px 18px;
+  overflow-x: auto;
+  margin: 18px 0;
+  line-height: 1.5;
+}
+
+.post pre code {
+  background: none !important;
+  color: var(--text) !important;
+  padding: 0;
+  border-radius: 0;
+  white-space: pre;
+}
+
+/* Figures + captions */
+.post figure {
+  margin: 22px 0;
+  text-align: center;
+}
+
+.post figure img {
+  max-width: 100%;
+  height: auto;
+}
+
+.post figcaption {
+  color: var(--muted);
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* MathJax display equations */
+.post mjx-container {
+  color: var(--accent);
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+}
+
+.post mjx-container[display="true"] {
+  margin: 20px 0;
+}
+
+/* YCoCg matrices: 30% smaller than the other equations */
+.post .eq-small mjx-container {
+  font-size: 70%;
+}
+
+/* Lead paragraph */
+.post .lead {
+  color: var(--cyan);
+}
+
+.post strong { color: var(--cyan); }
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--cyan-deep); }
+
+/* ===== Responsive ===== */
+@media screen and (max-width: 800px) {
+  .layout { flex-direction: column; }
+  .sidebar {
+    width: 100%;
+    max-width: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .content { width: 100%; padding: 24px 18px 60px; }
+}
