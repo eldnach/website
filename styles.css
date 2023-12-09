@@ -1,10 +1,17 @@
 * {
+    font-family: sans-serif;
     box-sizing: border-box;
   }
 
   a {
     color: #026fb2;
     padding: 10px 10px;
+  }
+
+  /* Solid border */
+  hr.solid {
+    margin-top: 50px;
+    border-top: 3px solid #bbb;
   }
 
   body {
@@ -52,8 +59,7 @@
   .post {
     font-family: sans-serif;
     background-color: white;
-    padding: 20px;
-    margin-top: 20px;
+    margin-top: 50px;
   }
   
 
@@ -61,8 +67,8 @@
   .card {
     font-family: sans-serif;
     background-color: white;
-    padding: 20px;
-    margin-top: 20px;
+    padding: 5px;
+    margin-top: 5px;
   }
   
   /* Clear floats after the columns */
