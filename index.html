@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Eldnach</title>
+  <link rel="shortcut icon" type="image/png" href="images/vfx-logo.png">
+  <link rel="stylesheet" href="styles.css">
+    <script type="module" src="https://md-block.verou.me/md-block.js"></script>
+</head>
+
+<div class="topbar"style="background-color: white; background-size: cover; height:380px; padding-top:5px; text-align: center;">
+    <p><a href="index.html"><img src="images/vfx-logo-animation.gif" style="height:300px; border-radius: 50%;"alt="vfx logo"></a></p>
+        <p style="font-size: 20px; color:#1F9AFE;">
+        <a href="https://github.com/eldnach?tab=repositories">Github</a>
+        <a href="https://dn3d.artstation.com/">ArtStation</a>
+        <a href="https://www.shadertoy.com/user/lerping/sort=newest">ShaderToy</a>
+        <a href="posts/hmi.html">HMI</a>
+        <a href="https://www.linkedin.com/in/eldnach/">LinkedIn</a>
+    </p>
+</div>
+
+<div class="row">
+    <div class="leftcolumn">
+        <div class= "post">
+            <md-block>
+              # Sentis - Edge Detection Filter
+              Edge Detection (Sobel) filter created in pytorch, exported using .ONNX and executed in Unity via the Sentis API.
+
+              The "Sobel.cs" script loads the model and converts a RenderTexture into a Tensor, to be used as the model's input. The model's output is then converted back into a RenderTexture.
+              <p align="left">
+                <img width="70%" src="https://github.com/eldnach/sentis-edge-detect/blob/main/.github/images/shrine.gif?raw=true" alt="shrine">
+              </p>
+              <p align="left">
+                  <img width="70%" src="https://github.com/eldnach/sentis-edge-detect/blob/main/.github/images/bridge.gif?raw=true" alt="bridge">
+              </p>
+              
+              Model execution is timed at around 0.28ms on an RTX 3080 (Ti) Mobile:
+              <p align="left">
+                  <img width="70%" src="https://github.com/eldnach/sentis-edge-detect/blob/main/.github/images/nsight-timing.png?raw=true" alt="nsight-timing">
+              </p>
+
+              Github: <a href="https://github.com/eldnach/sentis-edge-detect/">https://github.com/eldnach/sentis-edge-detect/</a>
+
+              ## Requirements:
+              - Unity 6.1
+              - Sentis (version 2.1.1, obtained from the Unity Package Manager)
+            </md-block>    
+        </div>
+        <div class= "post">
+          <md-block>
+              # Procedural VFX Demo 
+
+              Compute, Indirect Rendering and GPU Culling used to render large amounts of procedural geometry with low rendering overhead. 
+              
+              Procedural drawing also reduces build size, by eliminating the need for prebaked 3D assets. The demo uses a single 2D noise texture.
+              
+              <p align="center">
+                <img width="100%" src="https://github.com/eldnach/crop-circles/blob/main/.github/images/crop-circles_0.gif?raw=true" alt="crop-circles_0">
+              </p>
+              
+              <p align="center">
+                <img width="100%" src="https://github.com/eldnach/crop-circles/blob/main/.github/images/crop-circles_1.gif?raw=true" alt="crop-circles_1">
+              </p>
+              
+              <p align="center">
+                <img width="100%" src="https://github.com/eldnach/crop-circles/blob/main/.github/images/crop-circles_2.gif?raw=true" alt="crop-circles_2">
+              </p2>
+              
+              Made in Unity 6.1 using a custom scriptable render pass and compute shaders.
+          </md-block>    
+      </div>
+        <hr class="solid">
+        <div class= "post">
+            <md-block>
+                # URP Ray Traced Shadows (Custom Renderer Feature)
+              
+                Live GDC 2024 demo (~36:00):  <a href="https://gdcvault.com/play/1034719/Unity-Developer-Summit-Rendering-Customization">https://gdcvault.com/play/1034719/Unity-Developer-Summit-Rendering-Customizationt</a> 
+
+                <p align="center">
+                    <img width="100%" src="https://github.com/eldnach/urp-raytraced-shadows-port/blob/main/.github/images/InlineRT.gif?raw=true" alt="InlineRT">
+                </p>
+
+                Github: <a href="https://github.com/eldnach/urp-raytraced-shadows-port">https://github.com/eldnach/urp-raytraced-shadows-port</a> 
+                
+                Universal Render Pipeline port of Ionut Nedelcu's Inline Ray Traced Shadows.
+
+                ## Requirements
+                Supported in Unity 2023.3b and later.
+                
+                ## Usage
+                In the active Universal Renderer Asset settings, add and enable the "Ray Traced Shadow Pass" Renderer Feature.  
+            </md-block>  
+        </div>
+        <hr class="solid">
+        <div class= "post">
+            <md-block>
+                # NoiseKit - Procedural Volumetric Texture Generation 
+                
+                Procedural generation of tileable volumetric textures in the Unity Editor. Choose from available noise types, edit noise properties, perform channel packing and export as 3D/2D textures.
+                
+                <p align="left">
+                    <img width="80%" src="https://github.com/eldnach/noisekit/blob/main/.github/images/NoiseKitExample.gif?raw=true" alt="NoiseComposition">
+                </p>
+
+                Github: <a href="https://github.com/eldnach/noisekit">https://github.com/eldnach/noisekit</a>
+                
+                ## Requirements
+                NoiseKit is supported in Unity 2021 LTS and later. Compute shader support is required.
+                 
+                ## Setup
+                1. In the Unity Editor, go to `Window > Package Manager`
+                2. On the top left on the Package Manager window, click on `+ > Add package from git URL...` 
+                3. Add the following URL "https://github.com/eldnach/noisekit.git" and click `Add`
+                
+                Once installed, open the NoiseKit panel from the main toolbar: `Window > NoiseKit > Open`
+                
+                ## Noise Types
+                The following noise types are currently supported:
+                - Value
+                - Perlin
+                - Cellular 
+                - Fractal Value
+                - Fractal Perlin
+                
+                ## Controls
+                `Mode`: toggle between 2D and 3D noise generation.
+                `Noise Selection`: add or remove noise instances, and set the desired noise type.  
+                `Noise Editor`: control the available noise properties (per instance).  
+                `Channels`: add or remove noise channels, and perform channel packing.  
+                `Viewport`: preview the generated noise texture and per-channel masks.  
+                `Export`: set the exported texture's precision (8/16 bit per channel), resolution and file path.  
+                
+                <p align="left">
+                  <img width="40%" src="https://github.com/eldnach/noisekit/blob/main/.github/images/NoiseKitControls.png?raw=true" alt="NoiseControls">
+                </p>
+                
+                Additional noise types may be added.
+            </md-block>   
+        </div>
+        <hr class="solid">
+        <div class= "post">
+            <md-block>
+                # Indirect Rendering and GPU Culling 
+
+                This sample implementes a procedural (indirect) Scriptable Render Pass, which is instantiated and enequeued within the Univesral Render Pipeline.
+                <p align="left">
+                  <img width=80%" src="https://github.com/eldnach/indirect-rendering/blob/main/.github/images/draw-indirect.gif?raw=true" alt="DrawIndirect">
+                </p>
+                
+                Indirect Drawing allows to procedurally generate geometry and drawing parameter data using compute shaders. This technique can be used in order to massively-parallelize the transformation, culling, and rendering of complex geometries.
+                
+                In this example, a compute shader is used in order to procedurally generate and transform a large amount of vertices and mesh instances. A final instance-based culling dispatch is executed once per frame, in order to procedurally render any visible instances:
+                
+                <p align="left">
+                  <img width="75%" src="https://github.com/eldnach/indirect-rendering/blob/main/.github/images/gpu-culling.gif?raw=true" alt="GPUCullling">
+                </p>
+                ## Renderer Feature
+                
+                You can enable and configure the procedural rendering pass by adding a "Procedural Rendering Feature" to the active UniversalRenderer.asset:
+                <p align="left">
+                  <img width="75%" src="https://github.com/eldnach/indirect-rendering/blob/main/.github/images/renderer-feature.png?raw=true" alt="RendererFeature">
+                </p>
+                
+                The renderer feature's settings can be used to load an input mesh, configure the per-instance mesh count, and set the total instance count. Optional heightmap, wind deformation and camera-based repulsion can be enabled.
+
+                Github: <a href="https://github.com/eldnach/indirect-rendering">https://github.com/eldnach/indirect-rendering</a>
+            </md-block>
+        </div>
+        <hr class="solid">
+        <div class= "post">
+            <md-block>
+                # Shader Variant Analysis
+               
+                Track and manage shader permutations in the Unity Editor:
+                * Trace the shader variants generated by your project at build time. 
+                * Analyze the traces and identify Which shaders and keywords generate the most permutations.
+                * Identify effective ways to reduce shader build times.
+                        
+                <p align="left">
+                    <img width="100%" src="https://github.com/eldnach/shader-variant-analysis/blob/main/.github/images/shader-variant-analysis.png?raw=true" alt="ShaderVariants">
+                    </p>
+
+                Github: <a href="https://github.com/eldnach/shader-variant-analysis">https://github.com/eldnach/shader-variant-analysis</a>
+
+                The Unity Editor generates and compiles a large amount of shader permutations at build time, based on the amount of Shader Keywords declared and evaluated in shaders. This mechanism provides runtime control over shader functionality, while maintaing optimal shader execution performance.
+                Shader variant generation contributes to an expontential growth in project build times, depending on the amount of shader keywords and render pipeline features enabled:
+                
+                <p align="left">
+                <img width="60%" src="https://github.com/eldnach/shader-variant-analysis/blob/main/.github/images/shader-build-times.jpg?raw=true" alt="ShaderBuiild">
+                </p>
+
+                It is advised to monitor the project's shader variant generation, and ensure no unnecessary variants are created at project build time. For more information on Unity's shader variant generation see https://blog.unity.com/engine-platform/2021-lts-improvements-to-shader-build-times-and-memory-usage 
+    
+                ## Requirements
+                Supported in Unity 2021 LTS and later.
+                
+                ## Setup
+                1. Clone the package repository "https://github.com/eldnach/shader-variant-analysis"
+                2. In the Unity Editor, go to `Window > Package Manager`
+                3. In the top left of the Package Manager window, click on `+ > Add package from disk` 
+                4. Add the package directory
+                      
+                Once installed, go to `Window > Analysis > Shader Variant Analysis`.
+                
+                ## Usage
+                
+                Enable the "Trace Next Build" setting (`Shader Variant Analysis > Build Settings > Trace Next Build`), in order to record your project's shader generation at build time. The trace file will be saved in your project's Asset folder, using the specified name:
+                
+                <p align="center">
+                <img width="100%" src="https://github.com/eldnach/shader-variant-analysis/blob/main/.github/images/build-settings.png?raw=true" alt="BuildSettings">
+                </p>
+                
+                Initiate a project build as usual. Once the build is complete, load the trace (`Shader Variant Analysis > Import Settings > Load Traces`) and analyze the result. The `Tracked Shaders` panel will list all the shader included in the build, along with their respective variant counts.
+                
+                <p align="center">
+                <img width="100%" src="https://github.com/eldnach/shader-variant-analysis/blob/main/.github/images/shaders.png?raw=true" alt="TrackedShadesr">
+                </p>
+                
+                You can expand the `Keywords` dropodown, in order to list all the keywords declared in a shader, and their contribution towards variant generation. Keyword tool tips reveal the render pipeline feature which enables each keyword.
+                
+                <p align="center">
+                <img width="100%" src="https://github.com/eldnach/shader-variant-analysis/blob/main/.github/images/shader-keywords.png?raw=true" alt="TrackedKeywords">
+                </p>
+                
+                In the above example, the "_ADDITIONAL_LIGHTS_SHADOWS" keyword is included in a large number of variants. This keyword is enabled via the "Additional Lights/Cast Shadows" settings in the Universal Render Pipeline Asset. Disabling graphics features in the project and render pipeline settings will allow the Unity Editor to filter the associated keywords and reduce shader build time. 
+                
+                The `Variants` dropdown reveals a detailed view on each variant generated by shader, along with the variant's subshader, pass, stage, platform and keyword set:
+                
+                <p align="center">
+                <img width="100%" src="https://github.com/eldnach/shader-variant-analysis/blob/main/.github/images/shader-variants.png?raw=true" alt="TrackedVariants">
+                </p>   
+                 
+            </md-block>
+        </div>
+        <hr class="solid">
+        <div class= "post">
+            <md-block>
+                # Unity Shader Performance Metrics
+
+                Offline compilation and analysis of ShaderLab and ShaderGraph shaders, using the Mali Offline Shader Compiler:
+                
+                <p align="left">
+                  <img width="90%" src="https://github.com/eldnach/shader-perf-metrics/blob/main/.github/images/shader-perf-metrics.png?raw=true" alt="ShaderPerf">
+                </p>
+                
+                Github: <a href="https://github.com/eldnach/shader-perf-metrics">https://github.com/eldnach/shader-perf-metrics</a>
+                
+                ## Requirements
+                Supported in Unity 2021 LTS and later. Pre-installation of the Mali Offline Shader Compiler is required: https://developer.arm.com/Tools%20and%20Software/Mali%20Offline%20Compiler
+                
+                ## Setup
+                1. In the Unity Editor, go to `Window > Package Manager`
+                2. On the top left on the Package Manager window, click on `+ > Add package from git URL...` 
+                3. Add the following URL "https://github.com/eldnach/unity-shader-perf.git" and click `Add`
+                
+                Once installed, go to `Window > Shader Performance Metrics > Open`.
+                
+                ## Shader Settings
+                * **Shader:** Select a valid ShaderLab or ShaderGraph shader to compile and anaylize.  
+                * **Subshader:** Select the relevant Subshader index, out of the selected shader's available subshaders.  
+                * **Pass:** Select the relevant Pass index, out of the selected subshader's available passes.  
+                * **Keywords:** Add a list of shader keywords to enable, in order to compile and analyze a specific shader variant. Refer to the Unity documentation for more information on [shader variants](https://docs.unity3d.com/Manual/shader-variants.html).
+                
+                ## Compiler Settings
+                * **Compiler:** Select the desire offline shader compiler to use. At the moment, the only supported compiler is "MALIOC".  
+                * **Compiler Path:** Specify the absolute path to the selected compiler's executable.  
+                * **GPU:** Select a target GPU provided by the selected compiler.  
+                * **Graphics API:** Select a target graphics API.  
+                * **Build Target:** Select a Unity build target.  
+                
+                ## Compiler Report
+                * **Source/Disassembly:** View the shader's source (glsl) or disassembly (spir-v).   
+                * **Metrics:** Instruction cycle counts reported by the compiler (arithmetic, load/store, texture...).      
+                * **Resources and Properties:** Additional insights reported by the compiler (register usage, 16bit-arithmetic, late z-test...).    
+      
+            </md-block>  
+        </div>
+        <hr class="solid">
+        <div class= "post">
+            <md-block>
+                # Docker web server configuration for Unity Web Players:
+
+                A simple guide for utilizing Docker and Nginx in order locally host and develop Unity Web Players.
+                
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/docker-nginx-unity.png?raw=true" alt="WebPlayer">
+                </p>
+
+                Github: <a href="https://github.com/eldnach/docker-nginx-unity">https://github.com/eldnach/docker-nginx-unity</a>
+                
+                This sample modifies the Nginx server configuration file (`nginx.conf`), in order to serve Unity's (gzip/brotli) precompressed files and accelerate loading times:
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/nginx-config.png?raw=true" alt="WebPlayer">
+                </p>
+                
+                ## Instructions
+                1. Before starting, please verify that Docker is installed and running (https://docs.docker.com/get-docker/).
+                
+                2. Create and navigate to a new project folder. Copy the contents of this repostiory to the root of your newly created project folder.
+                
+                3. Rename the docker file (`project/docker/project-name.Dockerfile`) and edit the docker-compose file to match the new project's name (`project/docker-compose.yml`)
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/docker-compose.png?raw=true" alt="DockerCompose">
+                </p>
+                
+                4. To reduce application loading times, ensure that Brotli/Gzip compression is enabled in your Unity project's Player Settings (`ProjectSettings -> Player -> Publishing Settings -> Compression Format`), and that "Decompression Fallback" is disabled:
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/player-settings.png?raw=true" alt="PlayerSettings">
+                </p>
+                
+                5. This repository includes a sample Unity Player at the webplayer directory (`project-folder/webplayer`). To overrwrite the project, build a Unity Web Player and copy the build folder's contents to this directory.
+                
+                6. Once the web player folder is ready, open a terminal at the project's root, and build a docker image using the following command: <span style="color:rgb(65, 93, 232)">"docker build -t <project-name>:local -f docker/<project-name>.Dockerfile ."</span>
+                
+                7. Print and copy the docker image ID using the <span style="color:rgb(65, 93, 232)">"docker images"</span> command:
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/docker-images.png?raw=true" alt="Docker Images">
+                </p>
+              
+                8. Run the docker container using the newly built docker image: <span style="color:rgb(65, 93, 232)">"docker run -p 127.0.0.1:hport:cport imageid"</span>.
+                Note: You can set both hport (host-port) and cport (container-port) to 80.
+                
+                9. Once the docker container is running, open a web browser and navigate to  <span style="color:rgb(65, 93, 232)">"127.0.0.1:hport"</span> in order to launch the web player:
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/web-player.png?raw=true" alt="WebPlayer">
+                </p>
+                
+                Note: You can open the developer tools in order to verify that Unity pre-compressed files have been served with the correct `Content-Encoding` header (gzip/br):
+                <p align="center">
+                  <img width="100%" src="https://github.com/eldnach/docker-nginx-unity/blob/main/.github/images/content-encoding.png?raw=true" alt="WebPlayer">
+                </p>
+            </md-block>  
+        </div>
+    </div>
+</div>
+
+</html>

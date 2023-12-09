@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Eldnach</title>
+  <link rel="shortcut icon" type="image/png" href="../images/vfx-logo.png">
+  <link rel="stylesheet" href="../styles.css">
+  <script type="module" src="https://md-block.verou.me/md-block.js"></script>
+</head>
+
+<div style="background-color: white; background-size: cover; height:380px; padding-top:20px; text-align: center;">
+    <p><a href="../index.html"><img src="../images/vfx-logo-animation.gif" style="height:300px; border-radius: 50%;"alt="vfx logo"></a></p>
+    <p style="font-size: 20px; color:#1F9AFE; margin: 10px;">
+        <a href="https://github.com/eldnach?tab=repositories">Github</a>
+        <a href="https://dn3d.artstation.com/">ArtStation</a>
+        <a href="https://www.shadertoy.com/user/lerping/sort=newest">ShaderToy</a>
+        <a href="../posts/hmi.html">HMI</a>
+        <a href="https://www.linkedin.com/in/eldnach/">LinkedIn</a>
+    </p>
+</div>
+
+<div class="row">
+    <div class="leftcolumn">
+        <div class= "post">
+            <md-block>
+                # NoiseKit - Procedural Volumetric Texture Generation 
+                
+                Procedural generation of tileable volumetric textures in the Unity Editor. Choose from available noise types, edit noise properties, perform channel packing and export as 3D/2D textures: <a href="https://github.com/eldnach/noisekit">https://github.com/eldnach/noisekit</a>
+                
+                <p align="left">
+                    <img width="80%" src="https://github.com/eldnach/noisekit/blob/main/.github/images/NoiseKitExample.gif?raw=true" alt="NoiseComposition">
+                </p>
+                
+                ## Requirements
+                NoiseKit is supported in Unity 2021 LTS and later. Compute shader support is required.
+                 
+                ## Setup
+                1. In the Unity Editor, go to `Window > Package Manager`
+                2. On the top left on the Package Manager window, click on `+ > Add package from git URL...` 
+                3. Add the following URL "https://github.com/eldnach/noisekit.git" and click `Add`
+                
+                Once installed, open the NoiseKit panel from the main toolbar: `Window > NoiseKit > Open`
+                
+                ## Noise Types
+                The following noise types are currently supported:
+                - Value
+                - Perlin
+                - Cellular 
+                - Fractal Value
+                - Fractal Perlin
+                
+                ## Controls
+                `Mode`: toggle between 2D and 3D noise generation.
+                `Noise Selection`: add or remove noise instances, and set the desired noise type.  
+                `Noise Editor`: control the available noise properties (per instance).  
+                `Channels`: add or remove noise channels, and perform channel packing.  
+                `Viewport`: preview the generated noise texture and per-channel masks.  
+                `Export`: set the exported texture's precision (8/16 bit per channel), resolution and file path.  
+                
+                <p align="left">
+                  <img width="40%" src="https://github.com/eldnach/noisekit/blob/main/.github/images/NoiseKitControls.png?raw=true" alt="NoiseControls">
+                </p>
+                
+                Additional noise types may be added.
+            </md-block>     
+        </div>
+    </div>
+    <div class="rightcolumn">
+        <div class="card">
+            <h3>About Me</h3>
+            <p>Realtime graphics enthusiant, currently working as a Technical Product Manager for the Unity Engine.</p>
+            <p>In this blog, I share some useful tools and personal projects to assist with Unity and realtime graphics development.</p>
+        </div>
+        <div class="card">
+            <h3>Posts</h3>
+            <div class="postsummary">
+                <a href="../posts/urp-raytraced-shadows-port.html">URP Raytraced Shadows Port</a>
+            </div><br>
+            <div class="postsummary">
+                <a href="../posts/noisekit.html">Volumetric Texture Generation</a>
+            </div><br>
+            <div class="postsummary">
+                <a href="../posts/indirectrendering.html">Indirect Rendering and GPU Culling</a>
+            </div><br>
+            <div class="postsummary">
+                <a href="../posts/shadervarianttracing.html">Shader Variant Tracing and Anlysis</a>
+            </div><br>
+            <div class="postsummary">
+                <a href="../posts/shaderperformancemetrics.html">Shader Performance Metrics</a>
+            </div><br>
+            <div class="postsummary">
+                <a href="../posts/dockernginxunity.html">Docker/Nginx Server for Unity Players</a>
+            </div><br>
+        </div>
+    </div>
+</div>
+
+</html>
