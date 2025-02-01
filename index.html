@@ -21,7 +21,51 @@
 </div>
 
 <div class="row">
-    <div class="leftcolumn">
+      <div class="leftcolumn">
+        <div class= "post">
+          <md-block>
+            # Edge-based Variable Rate Shading
+            Variable Rate Shading (VRS), also known as Fragment Shading Rate, is a technique which allows to decouple the rasterization and pixel shading rate. VRS can be used to minimize the pixel shading overhead, and improve performance while perserving image quality:
+
+            <p align="center">
+              <img width="100%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/vrs_edge.gif?raw=true" alt="vrs demo">
+            </p>
+
+            Github: <a href="https://github.com/eldnach/vrs-edge/">https://github.com/eldnach/vrs-edge/</a>
+            
+            This renderer feature uses the Sentis API to import and execute a Sobel Edge Detection model. The output of the model will be converted to a shading rate image, which can be used to optimize the performance of render passes.
+            
+            Setting a uniform (screen-wide) 2x2 shading rate results in visual artifacts when zoomed:
+            <p align="center">
+              <img width="100%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/2x2_vrs.png/?raw=true" alt="2x2 shading rate">
+            </p>
+            
+            By applying edge detection to the shading rate, visual fidelity is greatly improved:
+            <p align="center">
+              <img width="100%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/edge_vrs.png?raw=true" alt="edge based shading rate">
+            </p>
+            
+            Measuring GPU timing of a Volumetric Lighting pass using VRS:
+            | Shading Rate  | GPU Time (Volumetrics)|
+            | ------------- |:---------------------:|
+            | Uniform 1x1   | ~6.4 ms               |
+            | Uniform 2x2   | ~1.6 ms (75% faster)  |  
+            | Uniform 4x4   | ~0.5 ms (92% faster)  | 
+            | Edge based    | ~3.8 ms (40% faster)  | 
+            
+            ## Requirements
+            
+            - Unity 6.1
+            - Sentis 2.1.1 (can be imported from the Unity Package Manager)
+            
+            ## Platform Support
+            
+            - Android devices with support for Vulkan Fragment Shading Rate
+            - Windows devices with support for DirectX12 Variable Rate Shading 
+            - Compatible consoles
+          </md-block>    
+      </div>
+      <hr class="solid">
         <div class= "post">
             <md-block>
               # Sentis - Edge Detection Filter
@@ -35,18 +79,19 @@
                   <img width="70%" src="https://github.com/eldnach/sentis-edge-detect/blob/main/.github/images/bridge.gif?raw=true" alt="bridge">
               </p>
               
-              Model execution is timed at around 0.28ms on an RTX 3080 (Ti) Mobile:
-              <p align="left">
-                  <img width="70%" src="https://github.com/eldnach/sentis-edge-detect/blob/main/.github/images/nsight-timing.png?raw=true" alt="nsight-timing">
-              </p>
-
               Github: <a href="https://github.com/eldnach/sentis-edge-detect/">https://github.com/eldnach/sentis-edge-detect/</a>
+
+              The Sentis Sobel filter is using a 256x256 input tensor, and is executing at around ~0.22ms:
+              <p align="center">
+                <img width="100%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/sentis.png?raw=true" alt="sentis sobel">
+              </p>
 
               ## Requirements:
               - Unity 6.1
               - Sentis (version 2.1.1, obtained from the Unity Package Manager)
             </md-block>    
         </div>
+        <hr class="solid">
         <div class= "post">
           <md-block>
               # Procedural VFX Demo 
@@ -69,7 +114,7 @@
               
               Made in Unity 6.1 using a custom scriptable render pass and compute shaders.
           </md-block>    
-      </div>
+        </div>
         <hr class="solid">
         <div class= "post">
             <md-block>
