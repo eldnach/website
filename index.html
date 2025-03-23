@@ -24,45 +24,38 @@
       <div class="leftcolumn">
         <div class= "post">
           <md-block>
-            # Edge-based Variable Rate Shading
-            Variable Rate Shading (VRS), also known as Fragment Shading Rate, is a technique which allows to decouple the rasterization and pixel shading rate. VRS can be used to minimize the pixel shading overhead, and improve performance while perserving image quality:
+            # Unity Variable Rate Shading
+            Variable Rate Shading (VRS), also known as Fragment Shading Rate, is a technique which allows to decouple the rasterization and pixel shading rate. VRS can be used to minimize the pixel shading overhead, and improve performance while perserving image quality.
+            To learn more, check the official VRS announcement: <a href="https://discussions.unity.com/t/optimize-renderer-features-with-variable-rate-shading-in-unity-6-1">https://discussions.unity.com/t/optimize-renderer-features-with-variable-rate-shading-in-unity-6-1</a>
 
             <p align="center">
-              <img width="100%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/vrs_edge.gif?raw=true" alt="vrs demo">
+              <img width="70%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/vrs_edge.gif?raw=true" alt="vrs demo (edge)">
+            </p>
+            <p align="center">
+              <img width="70%" src="https://github.com/Unity-Technologies/shading-rate-demo/blob/main/.github/images/vrs-demo.gif?raw=true" alt="vrs demo (motion)">
             </p>
 
-            Github: <a href="https://github.com/eldnach/vrs-edge/">https://github.com/eldnach/vrs-edge/</a>
-            
-            This renderer feature uses the Sentis API to import and execute a Sobel Edge Detection model. The output of the model will be converted to a shading rate image, which can be used to optimize the performance of render passes.
+            Motion-based VRS: <a href="https://github.com/Unity-Technologies/shading-rate-demo">https://github.com/Unity-Technologies/shading-rate-demo</a>
+            Egde-based VRS: <a href="https://github.com/eldnach/vrs-edge">https://github.com/eldnach/vrs-edge</a>
             
             Setting a uniform (screen-wide) 2x2 shading rate results in visual artifacts when zoomed:
             <p align="center">
-              <img width="100%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/2x2_vrs.png/?raw=true" alt="2x2 shading rate">
+              <img width="50%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/2x2_vrs.png/?raw=true" alt="2x2 shading rate">
             </p>
             
-            By applying edge detection to the shading rate, visual fidelity is greatly improved:
+            By applying edge detection to the shading rate, we avoid shading artifacts around geometry edges:
             <p align="center">
-              <img width="100%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/edge_vrs.png?raw=true" alt="edge based shading rate">
+              <img width="50%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/edge_vrs.png?raw=true" alt="edge based shading rate">
             </p>
             
-            Measuring GPU timing of a Volumetric Lighting pass using VRS:
+            Measuring GPU timing of a Volumetric Lighting pass using various VRS techniques:
             | Shading Rate  | GPU Time (Volumetrics)|
             | ------------- |:---------------------:|
             | Uniform 1x1   | ~6.4 ms               |
             | Uniform 2x2   | ~1.6 ms (75% faster)  |  
             | Uniform 4x4   | ~0.5 ms (92% faster)  | 
             | Edge based    | ~3.8 ms (40% faster)  | 
-            
-            ## Requirements
-            
-            - Unity 6.1
-            - Sentis 2.1.1 (can be imported from the Unity Package Manager)
-            
-            ## Platform Support
-            
-            - Android devices with support for Vulkan Fragment Shading Rate
-            - Windows devices with support for DirectX12 Variable Rate Shading 
-            - Compatible consoles
+  
           </md-block>    
       </div>
       <hr class="solid">
@@ -97,19 +90,18 @@
               # Procedural VFX Demo 
 
               Compute, Indirect Rendering and GPU Culling used to render large amounts of procedural geometry with low rendering overhead. 
-              
               Procedural drawing also reduces build size, by eliminating the need for prebaked 3D assets. The demo uses a single 2D noise texture.
               
               <p align="center">
-                <img width="100%" src="https://github.com/eldnach/crop-circles/blob/main/.github/images/crop-circles_0.gif?raw=true" alt="crop-circles_0">
+                <img width="70%" src="images/crop-circles_0.gif?raw=true" alt="crop-circles_0">
               </p>
               
               <p align="center">
-                <img width="100%" src="https://github.com/eldnach/crop-circles/blob/main/.github/images/crop-circles_1.gif?raw=true" alt="crop-circles_1">
+                <img width="70%" src="images/crop-circles_1.gif?raw=true" alt="crop-circles_1">
               </p>
               
               <p align="center">
-                <img width="100%" src="https://github.com/eldnach/crop-circles/blob/main/.github/images/crop-circles_2.gif?raw=true" alt="crop-circles_2">
+                <img width="70%" src="images/crop-circles_2.gif?raw=true" alt="crop-circles_2">
               </p2>
               
               Made in Unity 6.1 using a custom scriptable render pass and compute shaders.
