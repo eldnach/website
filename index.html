@@ -49,25 +49,12 @@
             </p>
             
             Measuring GPU timing of a Volumetric Lighting pass using various VRS techniques:
-
-            <table style="width:50%">
-              <tr>
-                <th>Shading Rate</th>
-                <th>GPU Time (Volumetrics)</th>
-              </tr>
-              <tr>
-                <td>Uniform 1x1</td>
-                <td>Uniform 4x4</td>
-                <td>Edge-Based</td>
-                <td>Motion-Based</td>
-              </tr>
-              <tr>
-                <td>~6.4 ms</td>
-                <td>~0.5 ms</td>
-                <td>~4.1 ms</td>
-                <td>~2.7 ms</td>
-              </tr>
-            </table>
+            | Shading Rate  | GPU Time (Volumetrics)|
+            | ------------- |:---------------------:|
+            | Uniform 1x1   | ~6.4 ms               |
+            | Uniform 4x4   | ~0.5 ms (92% faster)  |  
+            | Edge based    | ~4.1 ms (35% faster)  | 
+            | Motion based  | ~2.7 ms (57% faster)  | 
   
           </md-block>    
       </div>
