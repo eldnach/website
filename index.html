@@ -24,29 +24,47 @@
       <div class="leftcolumn">
         <div class= "post">
           <md-block>
-            # Variable Rate Shading
-            Introducing a new VRS API for Unity, to balance between shading performance and fidelity. To learn more, check the official announcement: <a href="https://discussions.unity.com/t/optimize-renderer-features-with-variable-rate-shading-in-unity-6-1">https://discussions.unity.com/t/optimize-renderer-features-with-variable-rate-shading-in-unity-6-1</a>
+            # Neural LOD Selector
+            Training a small network (using C++, Metal and Pytorch) to predict the pixel error of different LOD levels. The network is then embedded in a compute shader (HLSL), implementing neural LOD selection on the GPU. 
+
+            Combining this with Indirect Drawing, we can render 10,000's of instances more efficiency while applying GPU-side culling and LOD selection.
+
+            The model can automatically learn the relationships between different input features (e.g. object distance, screen size, velocity, FOV...) and the loss in image quality for each LOD level. We can then use the predicted pixel error to pick an optimal LOD. 
+
+            The neural network is first trained using a standalone C++ application:
+            <p align="left">
+              <img width="80%" src="https://github.com/eldnach/neural-lod/blob/main/images/training_rock.gif?raw=true" alt="Training">
+              <br>
+              <em>Training LOD levels: pixel error highlighted in green </em>
+            </p>
+
+            We can use the model prediction to apply content-aware LODs based on the mesh characteristics. In this example, the delicate Sword asset maintains higher quality LODs at a distance, while the Rock uses more aggressive LODs. Feature selection is used to train the model based on combination of different parameters. By including the camera FOV as an input feature, the model can also switch to higher quality LODs when zooming on objects:
+            <p align="left">
+              <img width="80%" src="https://github.com/eldnach/neural-lod/blob/main/images/lod-zoom.gif?raw=true" alt="LODs">
+            </p>
+
+            To learn more, check the Github repo: <a href="https://github.com/eldnach/neural-lod">https://github.com/eldnach/neural-lod</a>
+          </md-block>    
+      </div>
+      <div class= "post">
+          <md-block>
+            # UI Defragmentation and Batching
+
+            UI layout can have a big impact on Unity's ability to batch renderers. Unity's batcher must respect the hierarchy to avoid breaking the render order. Non-overlapping UI elements can be batched by material. But tiny pixel overlaps can easily break this batching! At which point, the order matters a lot. 
+
+            I used a simple script to "defragment" a given UI panel and it's child elements. Looking at the element's rect transform and atlas, we can re-order elements to improve batching.  Before re-ordering the elements, we see over 100 draw calls:
 
             <p align="left">
-              <img width="70%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/vrs_edge.gif?raw=true" alt="vrs demo (edge)">
-            </p>
-            <p align="left">
-              <img width="70%" src="https://github.com/Unity-Technologies/shading-rate-demo/blob/main/.github/images/vrs-demo.gif?raw=true" alt="vrs demo (motion)">
+              <img width="80%" src="https://github.com/eldnach/defragment-ui/blob/main/.github/images/fragmented.gif?raw=true" alt="Fragmented">
             </p>
 
-            - Motion-based VRS: <a href="https://github.com/Unity-Technologies/shading-rate-demo">https://github.com/Unity-Technologies/shading-rate-demo</a>   
-            - Egde-based VRS: <a href="https://github.com/eldnach/vrs-edge">https://github.com/eldnach/vrs-edge</a>
-            
-            Setting a uniform (screen-wide) 2x2 shading rate results in visual artifacts when zoomed:
+
+            After a simple re-ordering, we can draw all sprites with just 2 draw calls:
             <p align="left">
-              <img width="50%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/2x2_vrs.png/?raw=true" alt="2x2 shading rate">
+              <img width="80%" src="https://github.com/eldnach/defragment-ui/blob/main/.github/images/de-fragmented.gif?raw=true" alt="De-Fragmented">
             </p>
-            
-            By applying edge detection to the shading rate, we avoid shading artifacts around geometry edges:
-            <p align="left">
-              <img width="50%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/edge_vrs.png?raw=true" alt="edge based shading rate">
-            </p>
-  
+
+            To learn more, check the Github repo: <a href="https://github.com/eldnach/defragment-ui">https://github.com/eldnach/defragment-ui</a>
           </md-block>    
       </div>
       <hr class="solid">
