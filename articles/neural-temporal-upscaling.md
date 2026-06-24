@@ -77,10 +77,6 @@ The layer outputs 4 channels: Y, Co, Cg and A. The first 3 channels represent ou
 
 **Note:** this model modifies the deferred pipeline to render a full resolution target for the geometry (G-buffer) pass. All other render passes including the deferred lighting pass are kept at half resolution. The high resolution G-buffer is used as a guide to help our network reconstruct fine details and better preserve the underyling geometry.
 
-<figure>
-  <img width="90%" src="images/hairball-border.gif" alt="G-buffer guided borders">
-</figure>
-
 ## Temporal accumulation and sharpening
 
 The final step will accumulate the model's reconstruction on top of previous frames. Blending a percentage of the reconstruction and warped history buffer, using the network's machine-learned blend factor 'a'. This allows our network to gradually refine the image across multiple frames, building up sub-pixel data at different jitter offsets.
