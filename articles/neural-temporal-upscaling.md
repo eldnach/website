@@ -2,14 +2,14 @@
 
 <p class="lead">This article recaps my journey to implement a <strong>machine-learning upscaler</strong> for realtime renderers and game engines. I will share the challenges encountered along the way, and various tips and tricks to optimize the model's training and inference.</p>
 
-By training the model using temporal rendering data, we are able to reconstruct and accumulate sub-pixel data across frames, and generate a crisp image in higher resolution:
+By training the model using temporal rendering data, we are able to reconstruct and accumulate sub-pixel data across frames, and generate a crisp image at higher resolution:
 
 <figure>
   <img width="100%" src="images/sponza-lion.gif" alt="Sponza upscale">
   <figcaption>Sponza: 960x540 rendering upsampled to 1920x1080 /w neural upscaling (x6 zoom)</figcaption>
 </figure>
 
-This approach uses a hybrid architecture that extracts latent features in low resolution, then performs a high-resolution reconstruction guided by a full-res G-buffer. Anchoring the network to high-res geometry and material data helps extract sharp details and ensure that textures and edges remain crisp and stable:
+The model extracts latent features in low resolution, then performs a high-resolution reconstruction guided by a full-res G-buffer. Anchoring the network to high-res geometry and material data helps extract sharp details and ensure that textures and edges remain crisp and stable:
 
 <figure>
   <img width="100%" src="images/sponza-poles.png" alt="Sponza poles">
@@ -18,7 +18,7 @@ This approach uses a hybrid architecture that extracts latent features in low re
 
 ## Low resolution feature extraction
 
-The network first reads the model's inputs (LR color + depth) and runs them through a 2-level (three-scale) encoder/decoder operating at low resolution:
+The first pass reads the model's inputs (LR color + depth) and runs them through a 2-level (three-scale) encoder/decoder operating at low resolution:
 
 1. The initial encoder layer applies a 3×3 convolution to produce 8 hidden features, then a 2×2 average-pool halves the resolution.
 2. The second encoder layer (3×3) produces 8 hidden features, then applies another 2×2 average-pool, reducing the resolution to a quarter of the input.
@@ -105,7 +105,7 @@ float amt = sigmoid(sharpenIntensity) * texelOffset * smoothstep(GATE_LO, GATE_H
 outY.x = saturate(alpha * H.x + (1.0 - alpha) * R.x + dY * amt);   // luminance + sharpen
 ```
 
-Across multiple frames, our network will temporally accumulate newly reconstructed subsamples on top of history buffer, extracting detail and generating smooth and crisp edges:
+The model will temporally accumulate newly reconstructed subsamples across frames, extracting texture detail and generating crisp edges:
 
 <figure>
   <img width="100%" src="images/foliage.png" alt="Foliage">
