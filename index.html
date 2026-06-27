@@ -238,6 +238,31 @@ Another option would be to use a <strong>normalized Log</strong> tonemapper whic
   <figcaption>Tonemapping: how the different tonemappers remap linear luminance</figcaption>
 </figure>
 
+## Clamping
+
+The motion-warped history can be stale or disoccluded at a geometry border the foreground and background move differently, so a single motion vector warps *across* the boundary and bilinearly mixes two surfaces' colors. The per-frame reconstruction also suffers from noisy chrominance because we weight luminance far more heavily than chroma in the loss function (see "Loss and Optimizer" section). This may show up as colored fringing along edges.
+
+Both isssues are addressed by clamping to the low-resolution color neighborhood, a variance-clipping technique borrowed from temporal anti-aliasing. For each pixel we build a color box from the 3×3 LR neighborhood (its mean ± γ·σ, computed in YCoCg) and clamp the target value into that box:
+
+```
+// Variance-clip a YCoCg value `c` to the local LR color box (mean ± gamma*sigma).
+float3 clampToLR(float3 c, float2 uv, float gamma) {
+    float3 m1 = 0, m2 = 0;
+    for (int dy = -1; dy <= 1; ++dy)
+    for (int dx = -1; dx <= 1; ++dx) {
+        float3 s = rgb2ycocg(SampleLR(uv + offset(dx, dy)));
+        m1 += s; m2 += s * s;                    // running mean + mean of squares
+    }
+    m1 /= 9.0; m2 /= 9.0;
+    float3 sd = sqrt(max(m2 - m1 * m1, 0.0));    // per-channel standard deviation
+    return clamp(c, m1 - gamma * sd, m1 + gamma * sd);
+}
+```
+
+We clamp the motion-warped history to this box before blending. If the warp landed on a clean, consistent surface the history sits inside the box and passes through untouched. Where it sampled across a disocclusion or geometry border, it is pulled back toward the current frame. Rejecting ghosts and the chromatic edge fringe.
+
+The same box can be applied to the reconstruction. We clamp only the `Co`/`Cg` components and leave luminance untouched. This removes the chromatic fringing while keeping the luminance detail fully crisp.
+
 ## Capture rig
 
 To build our training pipeline, we need to first implement a training simulation and extract the needed image data from our rendering engine. This process must be done carefully to ensure there are no mismatches between our trainer and rendering pipeline. Keep a close eye on factors such as texture formats, coordinate space and orientation.
@@ -295,54 +320,142 @@ We also record a manifest file alongside our training data. This file is loaded 
 }
 ```
 
-## Training engine
+## Data cropping
 
-We can train our model using robust machine learning frameworks like PyTorch and TensorFlow. In my case I found it is much more intuitive to experiment, debug and iterate using a hand-written and bare-metal trainer.
-
-By implementing the trainer ourselves, we can instrument all aspects of the training loop, extracting useful data and signals to identify issues and improve our model. And by using a native graphics API such as Metal, we can easily test and optimize our model's inference alongside our trainer. Reducing the need for constant round-trips between the inference engine and training framework. This leads to a more streamlined workflow and faster iteration.
-
-### Data set loader
-
-The first task of our training engine is <strong>loading our data set</strong>. Attempting to front-load any reasonably sized data set will consume too much memory. Our training engine will quickly run OOM and crash.
+The first task of our training engine is <strong>loading the data set</strong>. Attempting to front-load any reasonably sized data set will consume too much memory. Our training engine will quickly run OOM and crash.
 
 To circumvent this, we implement a cropping data loader. Our trainer initializes by loading a quarter-view of the input data. Every 1000 training steps or so, our trainer will reload a different region of the input data set from disk. Over time, our trainer will iterate over all of our data samples:
 
 <figure>
   <img width="100%" src="images/training-cropper.png" alt="Training crop loader">
-  <figcaption>Training crop loader</figcaption>
+  <figcaption>Training data cropping</figcaption>
 </figure>
 
 We can use the cropped data loader to train our model using a large number of high resolution frames, while keeping memory usage to a minimum.
 
-### Data sequencer
+## Data sequencing
 
 At each training step, the engine will iterate over our data samples and use them as network inputs as well as target reference. Iterating over a large data set will increase the training time and difficulty. Training the network using the same sequence, over and over again, will also bias our network's learning towards certain animations. 
 
 Data sequecing is used to speed up and randomize the training inputs. The initial 50% of training steps operate on a minimal training window defined by build-time constant. The active  sequence will randomize each frame, providing the network with a fresh set of inputs.  
 
-<Sequence length min>
+<figure>
+  <img width="100%" src="images/data-sequencing.png" alt="Training data sequencer">
+  <figcaption>Training data sequencing</figcaption>
+</figure>
 
-Once the step threshold is passed, the sequencer will gradually increase the sequence length to cover a larger training window:
+Once the step threshold is passed, the sequencer will gradually increase the sequence length to cover a larger training window.
 
-<Sequence growth>
+## Output loss
 
-### Loss and Optimizer
+At every training step the engine compares the network's output against the high-resolution reference and computes the loss factor. Rather than a single error term, the loss is a weighted sum of several terms, each shaping a different aspect of the output. All terms are computed in the tonemapped YCoCg space (see "Tonemapping" and "Color space").
 
-- Reconsrction loss
-- History loss
-- Sharpness loss
-- Hubert and Reinhard
-- Adam optimizer
+The first error loss term guides the model's output to match the reference.  We compare the model's prediciton (per YCoCg channel) to the target reference and calcualte the predicion error:
+<div class="eq">
+\[
+L_\text{recon} = w_Y \cdot \rho\big(\hat{Y} - Y\big) + w_{Co} \cdot \rho\big(\hat{Co} - Co\big) + w_{Cg} \cdot \rho\big(\hat{Cg} - Cg\big)
+\]
+</div>
 
-### Measurement 
+\( \rho \) is the Huber loss (described in the next section). This project sets \( w_Y = 4 \) and \( w_{Co} = w_{Cg} = 1 \) to prioritize luminance learning over chormaticity. 
 
-Instrument the training loop to track our model's behavior and convergence:
+The per-term error and loss values are recorded during training and saved to a log. This is used to visualize and monitor the network's learning across training steps and model iterations:
+<figure>
+  <img width="100%" src="images/output-loss.png" alt="Output loss trajectory">
+  <figcaption>Output loss trajectory</figcaption>
+</figure>
 
-- Visualizing prediction error with heatmaps
-- Tracking the loss trajectory (reconstruction and history loss)
-- Quantifying image quality (prediction and sharpness MSE)
-- Measure temporal accumulation (mean weights for temporal blend factor 'a')
-- Analyzing feature importance
+Loss is minimized fairly quickly but will spike at somewhat regular intervals. These spikes happen whenever our loader randmozies the data sequence, as described in the previous section. 
+
+## History loss
+
+Output loss has no incentive to keep the image stable across frames. The history loss term is added to penalize the network for drastic changes in output-history delta compared to the reference data:
+
+<div class="eq">
+\[
+e_t = \big(\hat{O}_t - \text{warp}(O_{t-1})\big) - \big(T_t - \text{warp}(T_{t-1})\big)
+\]
+</div>
+
+We first calcualte the delta in the model's prediciton/history. Then calcuate the delta in the target reference. If the deltas match, the temporal error is zero. The history loss is used to suppress frame jitters that the reconstruction loss would ignore.  This term is weighted heavily and is only activewhen history exists (skipped on the first frame and at disocclusions).
+
+<figure>
+  <img width="100%" src="images/history-error.png" alt="History error trajectory">
+  <figcaption>Output loss</figcaption>
+</figure>
+
+## Sharpness loss
+
+To stop high-frequency detail from regressing toward a blurry mean, we add an edge-matching term on luminance. Instead of comparing pixel values, it compares local gradients - the luma difference between a pixel and each of its neighbours — between output and reference:
+
+<div class="eq">
+\[
+L_\text{sharp} = w_\text{sharp} \sum_{\text{neighbours}} \rho\Big( \big(\hat{Y}_i - \hat{Y}_c\big) - \big(Y_i - Y_c\big) \Big)
+\]
+</div>
+
+Matching the reference's gradient structure forces the output to reproduce its edges at higher contrast. 
+
+<figure>
+  <img width="100%" src="images/sharpness-error.png" alt="Sharpness error trajectory">
+  <figcaption>Sharpness error</figcaption>
+</figure>
+
+## Reconstruction loss
+
+The terms above grade the final model output, which leans heavily on the history due to tempora accumulation. That leaves the per-frame reconstruction itself weakly supervised and some errors can drift unchecked. 
+
+A small auxiliary term applies the same Huber loss directly to the raw reconstruction \( R \) against the reference, on warmed frames only, keeping the reconsturction more accurate, even without temporal blending.
+
+<figure>
+  <img width="100%" src="images/raw-reconstruction-error.png" alt="Raw reconstruction error trajectory">
+  <figcaption>Raw reconstruction error</figcaption>
+</figure>
+
+
+## Huber and Reinhard
+
+Every term uses theHuber loss rather than a plain squared error. Huber loss is quadratic for small residuals and switches to linear once the residual exceeds a threshold \( \delta \):
+
+<div class="eq">
+\[
+\rho_\delta(x) =
+\begin{cases}
+\tfrac{1}{2}x^2 & |x| \le \delta \\[4pt]
+\delta\left(|x| - \tfrac{1}{2}\delta\right) & |x| > \delta
+\end{cases}
+\]
+</div>
+
+The quadratic region gives smooth, well-behaved gradients near the target, while the linear region caps the gradient magnitude for large residuals. This makes training robust to outliers — a single very bright or disoccluded pixel can no longer dominate a batch and blow up the gradient. I use \( \delta = 0.5 \). Combined with the Reinhard-Gamma tonemapping, which already compresses the HDR range into [0,1] before the loss is ever evaluated, the loss stays in a stable, bounded regime throughout training.
+
+## Adam optimizer
+
+The accumulated gradients update the weights via the Adam optimizer. Adam maintains a per-parameter running estimate of the gradient's first moment (mean, \( m \)) and second moment (uncentered variance, \( v \)), and uses them to scale each weight's step individually:
+
+<div class="eq">
+\[
+m_t = \beta_1 m_{t-1} + (1-\beta_1)\,g_t, \qquad
+v_t = \beta_2 v_{t-1} + (1-\beta_2)\,g_t^2
+\]
+\[
+w_t = w_{t-1} - \eta \, \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}
+\]
+</div>
+
+where \( \hat{m}_t \) and \( \hat{v}_t \) are bias-corrected, \( \eta = 10^{-3} \) is the learning rate, \( \beta_1 = 0.9 \), \( \beta_2 = 0.999 \), and \( \epsilon = 10^{-8} \). Parameters with consistently large gradients take smaller, normalized steps, which makes Adam forgiving of the very different scales our many weights operate at. Before each update I average the gradient over the pixel count, sanitize any non-finite values to zero, and clip to ±1 — a cheap guard that prevents one pathological frame from poisoning the weights.
+
+## Temporal regularizer
+
+The learned blend weight \( \alpha \) decides how much of the accumulated history each pixel keeps. Left to the reconstruction loss alone, the network tends to *under*-accumulate: a fresh, jittered reconstruction can score well on a single frame, so \( \alpha \) drifts low and we lose the temporal anti-aliasing that motivated the whole accumulator. To counteract this I add a one-sided regularizer that nudges \( \alpha \) up toward a target, penalizing it **only when it falls below** that target:
+
+<div class="eq">
+\[
+L_\alpha = \lambda \cdot \max\big(0,\; \alpha_\text{target} - \alpha\big)^2
+\]
+</div>
+
+With \( \alpha_\text{target} = 0.8 \) and \( \lambda = 0.1 \), this holds the mean blend weight high (history-dominant) so the output integrates many jittered samples and stays stable, while the one-sided hinge still lets \( \alpha \) drop freely where it must — at disocclusions and fast motion, where the reconstruction loss correctly overrides it. The regularizer is a pure training-time prior on \( \alpha \): it is disabled during evaluation so the measured quality reflects the deployed behaviour.
 <!-- BAKE:END -->
         </md-block>
       </div>
