@@ -335,31 +335,33 @@ We can use the cropped data loader to train our model using a large number of hi
 
 ## Data sequencing
 
-At each training step, the engine will iterate over our data samples and use them as network inputs as well as target reference. Iterating over a large data set will increase the training time and difficulty. Training the network using the same sequence, over and over again, will also bias our network's learning towards certain animations. 
+The training engine will iterate over our data samples and use them as network inputs as well as target reference. Iterating over a large data set will increase the training time and difficulty. Training the network using the same sequence, over and over again, will also bias our network's learning towards certain animations. 
 
-Data sequecing is used to speed up and randomize the training inputs. The initial 50% of training steps operate on a minimal training window defined by build-time constant. The active  sequence will randomize each frame, providing the network with a fresh set of inputs.  
+Data sequecing is used to speed up and randomize the training inputs. The initial 50% of training steps operate on a minimal training window defined by build-time constant. The trainer will randomize the active sequence each frame, providing the network with a fresh set of inputs. Once the step threshold is passed, the sequencer will gradually increase the sequence length to cover a larger training window.
 
 <figure>
   <img width="100%" src="images/data-sequencing.png" alt="Training data sequencer">
   <figcaption>Training data sequencing</figcaption>
 </figure>
 
-Once the step threshold is passed, the sequencer will gradually increase the sequence length to cover a larger training window.
-
 ## Output loss
 
-At every training step the engine compares the network's output against the high-resolution reference and computes the loss factor. Rather than a single error term, the loss is a weighted sum of several terms, each shaping a different aspect of the output. All terms are computed in the tonemapped YCoCg space (see "Tonemapping" and "Color space").
+At every training step, the engine compares the network's output against the high-resolution reference and computes the prediciton error:
+<figure>
+  <img width="100%" src="images/training-snapshot.png" alt="Training snapshot">
+  <figcaption>From left to right: Model prediction, Target and Error</figcaption>
+</figure>
 
-The first error loss term guides the model's output to match the reference.  We compare the model's prediciton (per YCoCg channel) to the target reference and calcualte the predicion error:
+Rather than using a single error term, the loss is a weighted sum of several terms, each shaping a different aspect of the output. All terms are computed in the tonemapped YCoCg space (see "Tonemapping" and "Color space"). The first term guides the model's output to match the reference.  
+
+We compare the model's prediciton (per YCoCg channel) to the target reference and calcualte the predicion error and Huber loss (described in the next section). This project sets the luminance weight to 4 and chormatic weights to 1, prioritizing edge and detail generation over chromaticity. 
 <div class="eq">
 \[
 L_\text{recon} = w_Y \cdot \rho\big(\hat{Y} - Y\big) + w_{Co} \cdot \rho\big(\hat{Co} - Co\big) + w_{Cg} \cdot \rho\big(\hat{Cg} - Cg\big)
 \]
 </div>
 
-\( \rho \) is the Huber loss (described in the next section). This project sets \( w_Y = 4 \) and \( w_{Co} = w_{Cg} = 1 \) to prioritize luminance learning over chormaticity. 
-
-The per-term error and loss values are recorded during training and saved to a log. This is used to visualize and monitor the network's learning across training steps and model iterations:
+The error and loss values are recorded during training and saved to a log. This is used to visualize and monitor the network's learning across training steps and model iterations:
 <figure>
   <img width="100%" src="images/output-loss.png" alt="Output loss trajectory">
   <figcaption>Output loss trajectory</figcaption>
