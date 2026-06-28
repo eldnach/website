@@ -348,7 +348,7 @@ L_\text{recon} = w_Y \cdot \rho\big(\hat{Y} - Y\big) + w_{Co} \cdot \rho\big(\ha
 The error and loss values are recorded during training and saved to a log. This is used to visualize and monitor the network's learning across training steps and model iterations:
 <figure>
   <img width="100%" src="images/output-loss.png" alt="Output loss trajectory">
-  <figcaption>Output loss trajectory</figcaption>
+  <figcaption>Output loss</figcaption>
 </figure>
 
 Loss is minimized fairly quickly but will spike at somewhat regular intervals. These spikes happen whenever our loader randmozies the data sequence, as described in the previous section. 
@@ -368,7 +368,7 @@ We first calcualte the delta in the model's prediciton/history. Then calcuate th
 
 <figure>
   <img width="100%" src="images/history-error.png" alt="History error trajectory">
-  <figcaption>Output loss</figcaption>
+  <figcaption>History error</figcaption>
 </figure>
 
 ## Sharpness loss
@@ -478,19 +478,19 @@ Neural inference is embedded within a compute shader written in HLSL. The networ
 // High-resolution reconstruction
 #pragma kernel WarpHistoryHR             // reproject history + warp the per-pixel accumulation count N
 #pragma kernel FusedUpsampleHRConvBlend  // x2 feature upsample, HR 3x3 conv, blend with history
-#pragma kernel SharpenPresent            // optional display-space unsharp
+#pragma kernel SharpenPresent            // optional display-space sharpen
 
 // Each frame dispatches the kernels in order:
 //   UNetLoadInput -> (UNetConv -> UNetPoolDown)x2 -> UNetConv -> (UNetUpAdd)x2   // LR features
-//   -> WarpHistoryHR -> FusedUpsampleHRConvBlend -> SharpenPresent              // HR output + history
+//   -> WarpHistoryHR -> FusedUpsampleHRConvBlend -> SharpenPresent               // HR output + history
 ```
 
 The trained model weights are loaded in Unity using a C# script and set as storage buffers for the neural kernels:
 ```
 // The trained weights are exported as one flat float32 blob
-byte[] bytes = options.weights.data;                  // raw binary asset
+byte[] bytes = options.weights.data;                 
 var floats = new float[bytes.Length / 4];
-Buffer.BlockCopy(bytes, 0, floats, 0, bytes.Length);  // reinterpret bytes -> floats
+Buffer.BlockCopy(bytes, 0, floats, 0, bytes.Length); 
 
 // Upload to a GPU storage buffer
 _weights = new ComputeBuffer(floats.Length, sizeof(float));
