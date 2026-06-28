@@ -1,4 +1,4 @@
-# Gbuffer Guided Neural Upscaling
+# G-buffer Guided Neural Upscaling
 
 <p class="lead">This article recaps my journey to implement a <strong>machine-learning upscaler</strong> for realtime renderers and game engines. I will share the challenges encountered along the way, and various tips and tricks to optimize the model's training and inference.</p>
 
