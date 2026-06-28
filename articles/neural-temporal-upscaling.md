@@ -1,8 +1,8 @@
-# Neural Temporal Upscaling
+# Gbuffer Guided Neural Upscaling
 
 <p class="lead">This article recaps my journey to implement a <strong>machine-learning upscaler</strong> for realtime renderers and game engines. I will share the challenges encountered along the way, and various tips and tricks to optimize the model's training and inference.</p>
 
-By training the model using temporal rendering data, we are able to reconstruct and accumulate sub-pixel data across frames, and generate a crisp image at higher resolution:
+By training the model using gbuffer rendering data, we are able to reconstruct images with finer detail and generate a crisper image at higher resolution:
 
 <figure>
   <img width="100%" src="images/sponza-lion.gif" alt="Sponza upscale">
@@ -36,29 +36,18 @@ All convolutions use a 3×3 kernel with a ReLU activation. The pooling pyramid g
 
 The next pass reads the 8 low-res features and upsamples them to screen resolution with a jitter-aware ×2 upsample. We negate the sub-pixel jitter offset from our pixel coordinate to minimize flickering and stabilize our reconstruction.
 
-In addition to the 8 latent features, we also concatenate 12 addition inputs to the high-resolution 3×3 convolution layer:
+In addition to the 8 latent features, we also concatenate addition inputs to the high-resolution 3×3 convolution layer:
 - Motion-warped color history
-- Motion-warped texel offset
 - Temporal luma delta
 - Current frame's jitter offset
 - High resolution G-buffer
 
-Similarly to other temporal upscalers, we retrieve the last frame's motion-warped color by sampling the history buffer with a motion vector offset. Subtracting the motion vector offset from the screen coordinates will negate camera motion, and ensure we are sampling the history buffer at the previous frame's coordinates.
+Similarly to temporal upscalers, we retrieve the last frame's motion-warped color by sampling the history buffer with a motion vector offset. Subtracting the motion vector offset from the screen coordinates will negate camera motion, and ensure we are sampling the history buffer at the previous frame's coordinates.
 
 ```
 // Reproject: sample last frame's color. Subtracting the motion vector negates camera/object motion
 float2 prevUV  = uv - motionVector;
 float3 warpedHistory = SampleHistory(historyBuffer, prevUV);   // tonemapped-YCoCg
-```
-
-While sampling the history buffer, we also calculate the normalize distance of the warped coordinates relative to the texel center. This "motion-warped texel offset" will be used by the network for stabilization and sharpening.
-
-```
-// How far the reprojected fetch lands from a texel center (sub-texel offset).
-// Larger offset = history is smeared by bilinear sampling 
-float2 texel  = prevUV * historySize;                 // history-texel space
-float2 d       = texel - (floor(texel) + 0.5);         // vector to nearest center
-float  texelOffset = saturate(length(d) / 0.7071);     // normalize (max = sqrt(0.5))
 ```
 
 We also calcualte the "temporal luma delta", which is the difference in luminance between the current frame's (input) color and the motion-warped history buffer.
@@ -68,44 +57,37 @@ We also calcualte the "temporal luma delta", which is the difference in luminanc
 float lumaDelta = inputColor.x - warpedHistory.x;   
 ```
 
-The layer outputs 4 channels: Y, Co, Cg and A. The first 3 channels represent our pixel's luminance and chrominance (more details on this in the "Color Space" section). 'A' represents the temporal accumulation blend factor of our model.
+The layer outputs 3 channels: Y, Co, and Cg. These channels represent our pixel's luminance and chrominance (more details on this in the "Color Space" section). 
 
 <figure>
-  <img width="100%" src="images/frame-recon.png" alt="Frame reconstruction">
+  <img width="100%" src="images/frame-reconstruction.png" alt="Frame reconstruction">
   <figcaption>Frame reconstruction</figcaption>
 </figure>
 
 **Note:** this model modifies the deferred pipeline to render a full resolution target for the geometry (G-buffer) pass. All other render passes including the deferred lighting pass are kept at half resolution. The high resolution G-buffer is used as a guide to help our network reconstruct fine details and better preserve the underyling geometry.
 
-## Temporal accumulation and sharpening
+## Temporal accumulation
 
-The final step will accumulate the model's reconstruction on top of previous frames. Blending a percentage of the reconstruction and warped history buffer, using the network's machine-learned blend factor 'a'. This allows our network to gradually refine the image across multiple frames, building up sub-pixel data at different jitter offsets.
+The reconstruction is blended with the history buffer using a temporal anti-aliaser.  This allows the upscaler to gradually refine the image across multiple frames, building up sub-pixel data at different jitter offsets.
 
 ```
-float3 Accumulate(float3 R, float3 H, float a, bool hasHistory)
+float3 Accumulate(float3 R, float3 H, uint N)
 {
-    // Learned blend weight α
-    // No history (first frame / disocclusion) α = 0, output is pure reconstruction.
-    float alpha = hasHistory ? alphaMax * sigmoid(a) : 0.0;
+    // Count-driven blend weight (converging accumulator).
+    // N is the per-pixel sample count: warped along with the history, incremented while the
+    // reprojection stays valid. Reset to 0 on disocclusion and capped at Nmax.
+    float alpha = (float)N / (float)(N + 1);      // N=0 (fresh/disoccluded) → α=0 → pure reconstruction
 
     //  out = α·history + (1−α)·reconstruction
     float3 outY;
     outY.x = alpha * H.x + (1.0 - alpha) * R.x;   // luminance Y
     outY.y = alpha * H.y + (1.0 - alpha) * R.y;   // chrominance Co
     outY.z = alpha * H.z + (1.0 - alpha) * R.z;   // chrominance Cg
-    return outY;   //  Blended output (also next frame's history)
+    return outY;   //  Blended output (and next frame's history)
 }
 ```
 
-We apply edge sharpening by adding the reconstruction-to-history luma delta ontop of the temporal accumulation. The sharpening amount is driven by the sub-texel offset described in the previous section and is amplified by a tuneable 'sharpenIntensity' uniform. Note that the sharpening is also gated by configurable 'GATE_LO'/'GATE_HI' defines, so we limit sharpening to pixels with sufficiently large luma delta:
-
-```
-float dY  = R.x - warpedHistory.x;                    
-float amt = sigmoid(sharpenIntensity) * texelOffset * smoothstep(GATE_LO, GATE_HI, abs(dY));
-outY.x = saturate(alpha * H.x + (1.0 - alpha) * R.x + dY * amt);   // luminance + sharpen
-```
-
-The model will temporally accumulate newly reconstructed subsamples across frames, extracting texture detail and generating crisp edges:
+The upscaler will temporally accumulate newly reconstructed subsamples across frames, extracting texture detail and generating crisp edges:
 
 <figure>
   <img width="100%" src="images/foliage.png" alt="Foliage">
@@ -183,7 +165,7 @@ Another option would be to use a <strong>normalized Log</strong> tonemapper whic
 
 ## Clamping
 
-The motion-warped history can be stale or disoccluded at a geometry border the foreground and background move differently, so a single motion vector warps *across* the boundary and bilinearly mixes two surfaces' colors. The per-frame reconstruction also suffers from noisy chrominance because we weight luminance far more heavily than chroma in the loss function (see "Loss and Optimizer" section). This may show up as colored fringing along edges.
+The motion-warped history can be stale or disoccluded at a geometry border the foreground and background move differently, so a single motion vector warps *across* the boundary and bilinearly mixes two surfaces' colors. The per-frame reconstruction also suffers from noisy chrominance because we weight luminance far more heavily than chroma in the loss function. This may show up as colored fringing along edges.
 
 Both isssues are addressed by clamping to the low-resolution color neighborhood, a variance-clipping technique borrowed from temporal anti-aliasing. For each pixel we build a color box from the 3×3 LR neighborhood (its mean ± γ·σ, computed in YCoCg) and clamp the target value into that box:
 
@@ -287,6 +269,8 @@ Data sequecing is used to speed up and randomize the training inputs. The initia
   <figcaption>Training data sequencing</figcaption>
 </figure>
 
+The shortest training window is tied to the sub-pixel jitter pattern. The temporal accumulator converges by averaging the reconstruction across the jitter phases, so the accumulated result only equals the anti-aliased target once a sequence has covered a full cycle of jitter offsets. We use a Halton sequence of 32 phases (for a ×2 upscale), so the minimum sequence length is 32 frames.
+
 ## Output loss
 
 At every training step, the engine compares the network's output against the high-resolution reference and computes the prediciton error:
@@ -312,9 +296,10 @@ The error and loss values are recorded during training and saved to a log. This 
 
 Loss is minimized fairly quickly but will spike at somewhat regular intervals. These spikes happen whenever our loader randmozies the data sequence, as described in the previous section. 
 
+
 ## History loss
 
-Output loss has no incentive to keep the image stable across frames. The history loss term is added to penalize the network for drastic changes in output-history delta compared to the reference data:
+The history loss term is added to penalize the network for drastic changes in output-history delta compared to the reference data:
 
 <div class="eq">
 \[
@@ -322,7 +307,7 @@ e_t = \big(\hat{O}_t - \text{warp}(O_{t-1})\big) - \big(T_t - \text{warp}(T_{t-1
 \]
 </div>
 
-We first calcualte the delta in the model's prediciton/history. Then calcuate the delta in the target reference. If the deltas match, the temporal error is zero. The history loss is used to suppress frame jitters that the reconstruction loss would ignore.  This term is weighted heavily and is only activewhen history exists (skipped on the first frame and at disocclusions).
+We first calcualte the delta in the model's prediciton/history. Then calcuate the delta in the target reference. If the deltas match, the temporal error is zero. The history loss is used for reconstruction consistency during motion. This term is only active when history exists (skipped on the first frame and at disocclusions).
 
 <figure>
   <img width="100%" src="images/history-error.png" alt="History error trajectory">
@@ -346,21 +331,9 @@ Matching the reference's gradient structure forces the output to reproduce its e
   <figcaption>Sharpness error</figcaption>
 </figure>
 
-## Reconstruction loss
+## Huber (Smooth L1 loss)
 
-The terms above grade the final model output, which leans heavily on the history due to tempora accumulation. That leaves the per-frame reconstruction itself weakly supervised and some errors can drift unchecked. 
-
-A small auxiliary term applies the same Huber loss directly to the raw reconstruction \( R \) against the reference, on warmed frames only, keeping the reconsturction more accurate, even without temporal blending.
-
-<figure>
-  <img width="100%" src="images/raw-reconstruction-error.png" alt="Raw reconstruction error trajectory">
-  <figcaption>Raw reconstruction error</figcaption>
-</figure>
-
-
-## Huber and Reinhard
-
-Every term uses theHuber loss rather than a plain squared error. Huber loss is quadratic for small residuals and switches to linear once the residual exceeds a threshold \( \delta \):
+Every term uses the Huber loss rather than a plain squared error. Huber loss is quadratic for small residuals and switches to linear once the residual exceeds a threshold \( \delta \):
 
 <div class="eq">
 \[
@@ -372,32 +345,106 @@ Every term uses theHuber loss rather than a plain squared error. Huber loss is q
 \]
 </div>
 
-The quadratic region gives smooth, well-behaved gradients near the target, while the linear region caps the gradient magnitude for large residuals. This makes training robust to outliers — a single very bright or disoccluded pixel can no longer dominate a batch and blow up the gradient. I use \( \delta = 0.5 \). Combined with the Reinhard-Gamma tonemapping, which already compresses the HDR range into [0,1] before the loss is ever evaluated, the loss stays in a stable, bounded regime throughout training.
+The quadratic region gives smooth gradients near the target, while the linear region caps the gradient magnitude for large residuals. This makes training robust to outliers. A single very bright or disoccluded pixel can not dominate a batch and blow up the gradient. Combined with the Reinhard-Gamma tonemapping, which already compresses the HDR range into [0,1] range, the loss stays in a stable and bounded range throughout training.
 
-## Adam optimizer
+## Model export and inference
 
-The accumulated gradients update the weights via the Adam optimizer. Adam maintains a per-parameter running estimate of the gradient's first moment (mean, \( m \)) and second moment (uncentered variance, \( v \)), and uses them to scale each weight's step individually:
+After training is done, the trained model weights are serialzied into a binary file format.  The trainer also saves a model description file using the .json format. This file includes a list of properties which will be used to configure, load and run our model's inference in the game engine:
 
-<div class="eq">
-\[
-m_t = \beta_1 m_{t-1} + (1-\beta_1)\,g_t, \qquad
-v_t = \beta_2 v_{t-1} + (1-\beta_2)\,g_t^2
-\]
-\[
-w_t = w_{t-1} - \eta \, \frac{\hat{m}_t}{\sqrt{\hat{v}_t} + \epsilon}
-\]
-</div>
+```json
+{
+  "arch": {
+    "depth_input": true,
+    "gbuffer_input": true,
+    "gbuffer_channels": 5,
+    "lowpass_in": 4,
+    "highpass_in": 20,
+    "out": 3,
+    "hidden": [8,8,8,8,8],
+    "params": 3357,
+  },
+  "blend_space": "perceptual_reinhard_gamma2.2",
+  "history_clamp": 1.5,
+  "lr_net": {
+    "downsample": "avgpool2x2",
+    "skip": "residual_add",
+    "type": "unet2",
+    "upsample": "nearest2x"
+  },
+  "output_space": "ycocg",
+  "scene": "Sponza",
+  "tonemap": {
+    "gamma": 2.2,
+    "lmax": 2.5,
+    "mode": "bounded_reinhard"
+  }
+  .....
+}
+```
 
-where \( \hat{m}_t \) and \( \hat{v}_t \) are bias-corrected, \( \eta = 10^{-3} \) is the learning rate, \( \beta_1 = 0.9 \), \( \beta_2 = 0.999 \), and \( \epsilon = 10^{-8} \). Parameters with consistently large gradients take smaller, normalized steps, which makes Adam forgiving of the very different scales our many weights operate at. Before each update I average the gradient over the pixel count, sanitize any non-finite values to zero, and clip to ±1 — a cheap guard that prevents one pathological frame from poisoning the weights.
+The next step is to implement a custom upscaling pass and inject it within the render pipeline. This is done using the dedicated 'IUpscaler' interface provided by Unity in the latest SDK versions:
+```
+// Register a custom upscaler in the URP Asset's "Upscaling Filter" dropdown
+public class NeuralUpscaler : AbstractUpscaler
+{
+    public override string name       => "Neural Upscaler (IUpscaler)";
+    public override bool   isTemporal => true;            // we consume motion vectors + a history buffer
+    public override UpscalerOptions options => _options;  // settings surfaced in the inspector
 
-## Temporal regularizer
+    // Set the per-frame sub-pixel jitter 
+    public override void CalculateJitter(int frame, float ratio, out Vector2 jitter, out bool allowScale)
+    {
+        jitter = NeuralJitter.Offset(frame);   // Halton(2,3), 32-phase, ±0.25 LR-px
+        allowScale = false;
+    }
 
-The learned blend weight \( \alpha \) decides how much of the accumulated history each pixel keeps. Left to the reconstruction loss alone, the network tends to *under*-accumulate: a fresh, jittered reconstruction can score well on a single frame, so \( \alpha \) drifts low and we lose the temporal anti-aliasing that motivated the whole accumulator. To counteract this I add a one-sided regularizer that nudges \( \alpha \) up toward a target, penalizing it **only when it falls below** that target:
+    // Bias LR texture sampling to match the capture-time mip bias 
+    public override float CalculateMipBias(Vector2Int pre, Vector2Int post)
+        => Mathf.Log((float)pre.x / post.x, 2f);
 
-<div class="eq">
-\[
-L_\alpha = \lambda \cdot \max\big(0,\; \alpha_\text{target} - \alpha\big)^2
-\]
-</div>
+    // Inject the compute passes into the render graph (binds LR color, depth, motion + HR g-buffer)
+    public override void RecordRenderGraph(RenderGraph graph, ContextContainer frameData)
+    {
+        // ... acquire inputs, then dispatch the kernels below ...
+    }
+}
+```
 
-With \( \alpha_\text{target} = 0.8 \) and \( \lambda = 0.1 \), this holds the mean blend weight high (history-dominant) so the output integrates many jittered samples and stays stable, while the one-sided hinge still lets \( \alpha \) drop freely where it must — at disocclusions and fast motion, where the reconstruction loss correctly overrides it. The regularizer is a pure training-time prior on \( \alpha \): it is disabled during evaluation so the measured quality reflects the deployed behaviour.
+Neural inference is embedded within a compute shader written in HLSL. The network is imlpemented using multiple kernels for the low and high resolution passes: 
+```
+// Low-resolution U-Net (feature extraction)
+#pragma kernel UNetLoadInput   // pack LR color + depth into the feature buffer
+#pragma kernel UNetConv        // 3x3 convolution + ReLU
+#pragma kernel UNetPoolDown    // 2x2 average-pool (downsample)
+#pragma kernel UNetUpAdd       // upsample + residual skip-add
+
+// High-resolution reconstruction
+#pragma kernel WarpHistoryHR             // reproject history + warp the per-pixel accumulation count N
+#pragma kernel FusedUpsampleHRConvBlend  // x2 feature upsample, HR 3x3 conv, blend with history
+#pragma kernel SharpenPresent            // optional display-space unsharp
+
+// Each frame dispatches the kernels in order:
+//   UNetLoadInput -> (UNetConv -> UNetPoolDown)x2 -> UNetConv -> (UNetUpAdd)x2   // LR features
+//   -> WarpHistoryHR -> FusedUpsampleHRConvBlend -> SharpenPresent              // HR output + history
+```
+
+The trained model weights are loaded in Unity using a C# script and set as storage buffers for the neural kernels:
+```
+// The trained weights are exported as one flat float32 blob
+byte[] bytes = options.weights.data;                  // raw binary asset
+var floats = new float[bytes.Length / 4];
+Buffer.BlockCopy(bytes, 0, floats, 0, bytes.Length);  // reinterpret bytes -> floats
+
+// Upload to a GPU storage buffer
+_weights = new ComputeBuffer(floats.Length, sizeof(float));
+_weights.SetData(floats);
+
+// Bind it to the kernels that consume the model weights
+cmd.SetComputeBufferParam(cs, kUNetConv, "_Weights", _weights);
+cmd.SetComputeBufferParam(cs, kFusedHR,  "_Weights", _weights);
+```
+
+After implementing the IUpscaler interface, the neural upscaler will be available through Unity's "Upscaling Filter" settings. When enabled, the network will run prior to post-prcoessing and upscale the render pipeline's color buffer to the display resolution:
+<figure>
+  <img width="100%" src="images/upscaler-selection.gif" alt="Sponza upscale">
+</figure>
