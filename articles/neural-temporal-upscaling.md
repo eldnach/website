@@ -5,16 +5,11 @@
 By training the model using gbuffer rendering data, we are able to reconstruct images with finer detail and generate a crisper image at higher resolution:
 
 <figure>
-  <img width="100%" src="images/sponza-lion.gif" alt="Sponza upscale">
-  <figcaption>Sponza: 960x540 rendering upsampled to 1920x1080 /w neural upscaling (x6 zoom)</figcaption>
+  <img width="100%" src="images/lumberyard-bistro-sign.png" alt="Bistro upscale">
+  <figcaption>Bistro: 960x540 rendering upsampled to 1920x1080 /w neural upscaling</figcaption>
 </figure>
 
 The model extracts latent features in low resolution, then performs a high-resolution reconstruction guided by a full-res G-buffer. Anchoring the network to high-res geometry and material data helps extract sharp details and ensure that textures and edges remain crisp and stable:
-
-<figure>
-  <img width="100%" src="images/sponza-poles.png" alt="Sponza poles">
-  <figcaption>Antialiasing comparison: bilinear (left) and neural upscaling (right)</figcaption>
-</figure>
 
 ## Low resolution feature extraction
 
