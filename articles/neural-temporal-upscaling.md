@@ -216,10 +216,10 @@ We start by injecting additional "capture" passes within our existing render pip
 
 We render our simulation using two scenarios: a fly through of our 3D environment and a static camera. The first scenario will generate a range of motion vector magnitudes by varying the camera speed throughout the capture. The second scenario uses a static camera, and will focus our network's training on sub-pixel reconstruction using the per frame jittering offset.
 
-Our capture rig uses two cameras with a synchronized transformation. The first camera will capture our model's inputs, rendering all passes (except the g-buffer pass!) at half res. The second camera renders the same sequence in parallel using a full res framebuffer. This pass enables MSAAx8 and Subpixel Morphological AntiAliasing to improve the image quality.
+Our capture rig uses two cameras with a synchronized transformation. The first camera will capture our model's inputs, rendering all passes (except the g-buffer pass) at half res. The second camera renders the same sequence in parallel using a full res framebuffer. This pass enables MSAAx8 to improve the image quality.
 
 <figure>
-  <img width="90%" src="images/capture-flythrough.gif" alt="Sponza flythrough">
+  <img width="90%" src="images/bistro-capture.gif" alt="Bistro flythrough">
   <figcaption>Left: high resolution camera (4K), Right: low resolution camera (1080p)</figcaption>
 </figure>
 
@@ -349,7 +349,7 @@ e_\text{sharp} = \big(O_\text{neighbour} - O_\text{center}\big) - \big(T_\text{n
 \]
 </div>
 
-The error delta between the output and target is used to calculate L1 loss. This is repeated for every neighbour pixel and summed: 
+The gradient delta between the output and target is used to calculate L1 loss. This is repeated for every neighbour pixel and summed: 
 
 <div class="eq">
 \[
