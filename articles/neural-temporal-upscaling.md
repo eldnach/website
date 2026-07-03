@@ -68,12 +68,10 @@ The reconstruction is blended with the history buffer using a temporal anti-alia
 ```
 float3 Accumulate(float3 R, float3 H, uint N)
 {
-    // Count-driven blend weight (converging accumulator).
-    // N is the per-pixel sample count: warped along with the history, incremented while the
-    // reprojection stays valid. Reset to 0 on disocclusion and capped at Nmax.
-    float alpha = (float)N / (float)(N + 1);      // N=0 (fresh/disoccluded) → α=0 → pure reconstruction
+    // N is the per-pixel sample count, resets to 0 on disocclusion and capped at Nmax:
+    float alpha = (float)N / (float)(N + 1);      
 
-    //  out = α·history + (1−α)·reconstruction
+    //  temporal accumulation = α·history + (1−α)·reconstruction
     float3 outY;
     outY.x = alpha * H.x + (1.0 - alpha) * R.x;   // luminance Y
     outY.y = alpha * H.y + (1.0 - alpha) * R.y;   // chrominance Co
@@ -91,7 +89,16 @@ The upscaler will temporally accumulate newly reconstructed subsamples across fr
 
 ## Color space
 
-Instead of teaching our network to output 3 different color channels, we can simplify the training process by transforming our input into the YCoCg color space. 'Y' encodes our pixel's luminance, while 'Co' and 'Cg' encode our pixel's orange and green chrominance. The YCoCg encoding is applied using the following matrix:
+When using RGB, all three channel will hold important spatial data such as edges and borders. The network will need more capacity to learn the relevant correlations across channel. Instead of operaeting in RGB, we can simplify the training process by transforming our input into the YCoCg color space. 'Y' encodes our pixel's luminance, while 'Co' and 'Cg' encode our pixel's orange and green chrominance. 
+
+When using YCoCg, the network can prioritize Luminance to easily learn and reconstruct spatial geometry, lighting and texture features. This allows us to generate a sharper and more detailed image with a smaller network.
+
+<figure>
+  <img width="100%" src="images/ycocg.png" alt="YCoCg">
+  <figcaption>YCoCg color space </figcaption>
+</figure>
+
+The YCoCg encoding is applied using the following matrix:
 
 <div class="eq-small">
 \[
@@ -111,9 +118,7 @@ The network will perform all feature extraction and upscaling in the YCoCg color
 \]
 </div>
 
-The main reason to do this is to reduce our network's training load. When using RGB, there is a high correlation between all three channels. A higher luminance pixel must increase the values of all three color channels. To reconstruct with proper luminance, our network must learn additional correlations across all three channels.
-
-Training with RGB will also reduce the accuracy of our gradient computations. The human eye is much more sensitive to changes in luminance compared to changes in hue/color. By using YCoCg encoding, we can manually weigh the different components of our model's output, and give higher importance to changes in luminance ('Y') over changes in chrominance ('Co', 'Cg'). This will teach our model to prioritize sharper edges and detail over minute color differences:
+When using YCoCg encoding, we can manually weigh the different components of our model's output, and give higher importance to changes in luminance ('Y') over changes in chrominance ('Co', 'Cg'). This will teach our model to prioritize sharper edges and detail over minute color differences:
 
 <div class="eq">
 \[
@@ -129,9 +134,15 @@ Training a network to perform feature extraction and upscaling in a large and un
 
 More importantly, our trainer's loss function (calculating the prediction error and loss for each training step) will produce a very high error when encountering high luminance values in our training data set. This can easily blow up our network's gradient, causing the network to overshoot and regress learning.
 
-A much simpler solution is to run our network using a normalized [0,1] value range. To achieve this, we simply run our network's color inputs and outputs through a custom tonemapper.
+A much simpler solution is to run our network using a normalized [0,1] value range. To achieve this, we simply run our network's color inputs and outputs through a tonemapper:
 
-We can choose the most optimal tonemapping function to best fit our content. In this example, I chose to implement a custom <strong>Reinhard-Gamma</strong> tonemapper:
+<figure>
+  <img width="100%" src="images/tonemapping.png" alt="Tonemapping">
+  <figcaption>Reinhard, Logarithmic and HLG tonemapping </figcaption>
+</figure>
+
+
+We can choose the most optimal tonemapping function to best fit our content. In this example, I chose to implement a bounded <strong>Reinhard-Gamma</strong> tonemapper:
 
 <div class="eq">
 \[
@@ -143,6 +154,11 @@ The upper bound (Lmax) is calculated by iterating through the training data set 
 
 Reinhard-Gamma outputs a wide value range for darks and midtones. But as the input value gets closer to the remapper's ceiling, the output's value range begins to shrink. This will reduce our network's ability to produce very high luminance values in great precision. But since the vast majority of pixels in our training dataset lay within the dark-midtone range, this is an acceptable trade off.
 
+<figure>
+  <img width="100%" src="images/reinhard.png" alt="Tonemapping">
+  <figcaption>Reinhard tonemapper</figcaption>
+</figure>
+
 Once our network's prediction is ready, we need to remap our value back to linear space. This is achieved by applying an inverse of the tonemapper:
 
 <div class="eq">
@@ -151,12 +167,14 @@ Y = \frac{E^{\gamma} \cdot L_{max}^2}{L_{max}^2 - E^{\gamma}(1 + L_{max}^2)}
 \]
 </div>
 
-Another option would be to use a <strong>normalized Log</strong> tonemapper which provides a very wide range and precision for high luminance values. But this would regress image quality for dark and mid-range luminance, which is not acceptable in most cases. A third option for high-luminance content is using a more complex <strong>Hybrid-Log-Gamma</strong> (HLG) tonemapper. HLG uses a gamma curve for dark/mid-range values and switches to a logarithmic curve for high luminance. This maintains a better balance for both mid and high tones compared to normalized Log.
+Another option would be to use a <strong>normalized Log</strong> tonemapper which provides a very wide range and precision for high luminance values. But this would regress image quality for dark and mid-range luminance, which is not acceptable in most cases. 
 
 <figure>
-  <img width="100%" src="images/tonemapping.png" alt="Tonemapping">
-  <figcaption>Tonemapping: how the different tonemappers remap linear luminance</figcaption>
+  <img width="100%" src="images/log.png" alt="Tonemapping">
+  <figcaption>Logarithmic tonemapper</figcaption>
 </figure>
+
+A third option for high-luminance content is using a more complex <strong>Hybrid-Log-Gamma</strong> (HLG) tonemapper. HLG uses a gamma curve for dark/mid-range values and switches to a logarithmic curve for high luminance. This maintains a better balance for both mid and high tones compared to normalized Log.
 
 ## Clamping
 
@@ -165,16 +183,17 @@ The motion-warped history can be stale or disoccluded at a geometry border the f
 Both isssues are addressed by clamping to the low-resolution color neighborhood, a variance-clipping technique borrowed from temporal anti-aliasing. For each pixel we build a color box from the 3×3 LR neighborhood (its mean ± γ·σ, computed in YCoCg) and clamp the target value into that box:
 
 ```
-// Variance-clip a YCoCg value `c` to the local LR color box (mean ± gamma*sigma).
+// Variance-clip a YCoCg value `c` to the local LR color box 
 float3 clampToLR(float3 c, float2 uv, float gamma) {
     float3 m1 = 0, m2 = 0;
     for (int dy = -1; dy <= 1; ++dy)
     for (int dx = -1; dx <= 1; ++dx) {
         float3 s = rgb2ycocg(SampleLR(uv + offset(dx, dy)));
-        m1 += s; m2 += s * s;                    // running mean + mean of squares
+        m1 += s; 
+        m2 += s * s;              
     }
     m1 /= 9.0; m2 /= 9.0;
-    float3 sd = sqrt(max(m2 - m1 * m1, 0.0));    // per-channel standard deviation
+    float3 sd = sqrt(max(m2 - m1 * m1, 0.0));   
     return clamp(c, m1 - gamma * sd, m1 + gamma * sd);
 }
 ```
@@ -255,9 +274,9 @@ We can use the cropped data loader to train our model using a large number of hi
 
 ## Data sequencing
 
-The training engine will iterate over our data samples and use them as network inputs as well as target reference. Iterating over a large data set will increase the training time and difficulty. Training the network using the same sequence, over and over again, will also bias our network's learning towards certain animations. 
+The training engine will iterate over the data set frame-by-frame, using the data as model inputs and target reference. Iterating over a large data set will increase the training time and difficulty. Training the network using the same sequence, over and over again, will also bias our network's learning towards certain animations. 
 
-Data sequecing is used to speed up and randomize the training inputs. The initial 50% of training steps operate on a minimal training window defined by build-time constant. The trainer will randomize the active sequence each frame, providing the network with a fresh set of inputs. Once the step threshold is passed, the sequencer will gradually increase the sequence length to cover a larger training window.
+Data sequencing is used to speed up training and randomize the inputs. The trainer operates on a smaller data window which progressively increases over the intitial 50% of training steps. Every N frames (N = Sequence size) the trainer will switch to a different sequence:
 
 <figure>
   <img width="100%" src="images/data-sequencing.png" alt="Training data sequencer">
@@ -268,7 +287,7 @@ The shortest training window is tied to the sub-pixel jitter pattern. The tempor
 
 ## Output loss
 
-At every training step, the engine compares the network's output against the high-resolution reference and computes the prediciton error:
+At every training step, the engine compares the network's output against the high-resolution reference and computes the prediction error:
 <figure>
   <img width="100%" src="images/training-snapshot.png" alt="Training snapshot">
   <figcaption>From left to right: Model prediction, Target and Error</figcaption>
@@ -276,10 +295,16 @@ At every training step, the engine compares the network's output against the hig
 
 Rather than using a single error term, the loss is a weighted sum of several terms, each shaping a different aspect of the output. All terms are computed in the tonemapped YCoCg space (see "Tonemapping" and "Color space"). The first term guides the model's output to match the reference.  
 
-We compare the model's prediciton (per YCoCg channel) to the target reference and calcualte the predicion error and Huber loss (described in the next section). This project sets the luminance weight to 4 and chormatic weights to 1, prioritizing edge and detail generation over chromaticity. 
 <div class="eq">
 \[
-L_\text{recon} = w_Y \cdot \rho\big(\hat{Y} - Y\big) + w_{Co} \cdot \rho\big(\hat{Co} - Co\big) + w_{Cg} \cdot \rho\big(\hat{Cg} - Cg\big)
+e_\text{out} = Output - Target
+\]
+</div>
+
+We compare the model's prediction (per YCoCg channel) to the target reference and calculate the prediction error and Huber loss (described in the next section). This project sets the luminance weight to 4 and chromatic weights to 1, prioritizing edge and detail generation over chromaticity.
+<div class="eq">
+\[
+L_\text{out} = w_Y \cdot L_1\big(e_Y\big) + w_{Co} \cdot L_1\big(e_{Co}\big) + w_{Cg} \cdot L_1\big(e_{Cg}\big)
 \]
 </div>
 
@@ -289,8 +314,7 @@ The error and loss values are recorded during training and saved to a log. This 
   <figcaption>Output loss</figcaption>
 </figure>
 
-Loss is minimized fairly quickly but will spike at somewhat regular intervals. These spikes happen whenever our loader randmozies the data sequence, as described in the previous section. 
-
+Loss is minimized fairly quickly but will spike at somewhat regular intervals. These spikes happen whenever the loader randomizes the input data sequence. 
 
 ## History loss
 
@@ -298,11 +322,17 @@ The history loss term is added to penalize the network for drastic changes in ou
 
 <div class="eq">
 \[
-e_t = \big(\hat{O}_t - \text{warp}(O_{t-1})\big) - \big(T_t - \text{warp}(T_{t-1})\big)
+e_t = \big(O_t - \text{warp}(O_{t-1})\big) - \big(T_t - \text{warp}(T_{t-1})\big)
 \]
 </div>
 
-We first calcualte the delta in the model's prediciton/history. Then calcuate the delta in the target reference. If the deltas match, the temporal error is zero. The history loss is used for reconstruction consistency during motion. This term is only active when history exists (skipped on the first frame and at disocclusions).
+We first calculate the delta in the model's prediction/history. Then calcuate the delta in the target reference. If the deltas match, the temporal error is zero. The history loss is used for reconstruction consistency during motion. This term is only active when history exists (skipped on the first frame and at disocclusions).
+
+<div class="eq">
+\[
+\text{L}_\text{history} = w_Y \cdot L_1(e_Y) + w_{Co} \cdot L_1(e_{Co}) + w_{Cg} \cdot L_1(e_{Cg})
+\]
+</div>
 
 <figure>
   <img width="100%" src="images/history-error.png" alt="History error trajectory">
@@ -311,11 +341,19 @@ We first calcualte the delta in the model's prediciton/history. Then calcuate th
 
 ## Sharpness loss
 
-To stop high-frequency detail from regressing toward a blurry mean, we add an edge-matching term on luminance. Instead of comparing pixel values, it compares local gradients - the luma difference between a pixel and each of its neighbours — between output and reference:
+To stop high-frequency detail from regressing toward a blurry mean, we add an edge-matching term on luminance. It compares the luma difference between a pixel and each of its neighbours:
 
 <div class="eq">
 \[
-L_\text{sharp} = w_\text{sharp} \sum_{\text{neighbours}} \rho\Big( \big(\hat{Y}_i - \hat{Y}_c\big) - \big(Y_i - Y_c\big) \Big)
+e_\text{sharp} = \big(O_\text{neighbour} - O_\text{center}\big) - \big(T_\text{neighbour} - T_\text{center}\big)
+\]
+</div>
+
+The error delta between the output and target is used to calculate L1 loss. This is repeated for every neighbour pixel and summed: 
+
+<div class="eq">
+\[
+L_\text{sharp} = \sum_{\text{neighbours}} L_1\big(e_\text{sharp}\big)
 \]
 </div>
 
@@ -332,7 +370,7 @@ Every term uses the Huber loss rather than a plain squared error. Huber loss is 
 
 <div class="eq">
 \[
-\rho_\delta(x) =
+L_1(x) =
 \begin{cases}
 \tfrac{1}{2}x^2 & |x| \le \delta \\[4pt]
 \delta\left(|x| - \tfrac{1}{2}\delta\right) & |x| > \delta
