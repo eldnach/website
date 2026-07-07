@@ -146,7 +146,7 @@ The upscaler will temporally accumulate newly reconstructed subsamples across fr
 </figure>
 
 
-The motion-warped history color can be stale or disoccluded. Ghosting can occur when the motion-warped color bilinearly filters two surfaces together. The per-frame reconstruction can also suffer from noisy chrominance. Both isssues are addressed by clamping the history sample and `Co`/`Cg` reconstruction to the low-resolution input's color neighborhood.
+The motion-warped history color can be stale or disoccluded and "ghosting" can occur when the motion-warped color bilinearly filters two surfaces together. This isssue is resolved by clamping the history sample to the low-resolution input's color neighborhood.
 
 ## Color space
 
