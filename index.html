@@ -25,7 +25,6 @@
 
   <div class="topbar">
     <span class="prompt">$</span>
-    <span class="name">Elad Damian Nachman</span>
     <span class="email">nachd1337gmail.com</span>
   </div>
 
@@ -57,9 +56,9 @@
 <!-- BAKE:START -->
 # G-buffer Guided Neural Upscaling
 
-<p class="lead">This article recaps my journey to implement a <strong>machine-learning upscaler</strong> for realtime renderers and game engines. I will share the challenges encountered along the way, and various tips and tricks to optimize the model's training and inference.</p>
+<p class="lead">This article recaps my journey to implement a <strong>machine-learning upscaler</strong> for realtime renderers and game engines. I will share the challenges encountered along the way, and various tips and tricks to optimize the model's training and inference.
 
-By training the model using gbuffer rendering data, we are able to reconstruct images with finer detail and generate a crisper image at higher resolution:
+By training the model using gbuffer rendering data, we are able to reconstruct images with fine detail and generate a crisp image at high resolution: </p>
 
 <figure>
   <img width="100%" src="images/lumberyard-bistro-sign.png" alt="Bistro upscale">
@@ -116,7 +115,7 @@ The layer outputs 3 channels: Y, Co, and Cg. These channels represent our pixel'
   <figcaption>Frame reconstruction</figcaption>
 </figure>
 
-**Note:** this model modifies the deferred pipeline to render a full resolution target for the geometry (G-buffer) pass. All other render passes including the deferred lighting pass are kept at half resolution. The high resolution G-buffer is used as a guide to help our network reconstruct fine details and better preserve the underyling geometry.
+This model modifies the deferred pipeline to render a full resolution target for the geometry (G-buffer) pass. All other render passes including the deferred lighting pass are kept at half resolution. The high resolution G-buffer is used as a guide to help our network reconstruct fine details and better preserve the underyling geometry.
 
 ## Temporal accumulation
 
@@ -137,12 +136,17 @@ float3 Accumulate(float3 R, float3 H, uint N)
 }
 ```
 
-The upscaler will temporally accumulate newly reconstructed subsamples across frames, extracting texture detail and generating crisp edges:
+The upscaler will temporally accumulate newly reconstructed subsamples across frames, extracting texture detail and generating smoother edges:
 
 <figure>
-  <img width="100%" src="images/foliage.png" alt="Foliage">
-  <figcaption>Foliage upscaling (bilinear vs neural)</figcaption>
+  <img width="100%" src="images/foliage.png" alt="Foliage upscale">
 </figure>
+<figure>
+  <img width="100%" src="images/lumberyard-bistro.png" alt="Bistro upscale">
+</figure>
+
+
+The motion-warped history color can be stale or disoccluded. Ghosting can occur when the motion-warped color bilinearly filters two surfaces together. The per-frame reconstruction can also suffer from noisy chrominance. Both isssues are addressed by clamping the history sample and `Co`/`Cg` reconstruction to the low-resolution input's color neighborhood.
 
 ## Color space
 
@@ -232,32 +236,6 @@ Another option would be to use a <strong>normalized Log</strong> tonemapper whic
 </figure>
 
 A third option for high-luminance content is using a more complex <strong>Hybrid-Log-Gamma</strong> (HLG) tonemapper. HLG uses a gamma curve for dark/mid-range values and switches to a logarithmic curve for high luminance. This maintains a better balance for both mid and high tones compared to normalized Log.
-
-## Clamping
-
-The motion-warped history can be stale or disoccluded at a geometry border the foreground and background move differently, so a single motion vector warps *across* the boundary and bilinearly mixes two surfaces' colors. The per-frame reconstruction also suffers from noisy chrominance because we weight luminance far more heavily than chroma in the loss function. This may show up as colored fringing along edges.
-
-Both isssues are addressed by clamping to the low-resolution color neighborhood, a variance-clipping technique borrowed from temporal anti-aliasing. For each pixel we build a color box from the 3×3 LR neighborhood (its mean ± γ·σ, computed in YCoCg) and clamp the target value into that box:
-
-```
-// Variance-clip a YCoCg value `c` to the local LR color box 
-float3 clampToLR(float3 c, float2 uv, float gamma) {
-    float3 m1 = 0, m2 = 0;
-    for (int dy = -1; dy <= 1; ++dy)
-    for (int dx = -1; dx <= 1; ++dx) {
-        float3 s = rgb2ycocg(SampleLR(uv + offset(dx, dy)));
-        m1 += s; 
-        m2 += s * s;              
-    }
-    m1 /= 9.0; m2 /= 9.0;
-    float3 sd = sqrt(max(m2 - m1 * m1, 0.0));   
-    return clamp(c, m1 - gamma * sd, m1 + gamma * sd);
-}
-```
-
-We clamp the motion-warped history to this box before blending. If the warp landed on a clean, consistent surface the history sits inside the box and passes through untouched. Where it sampled across a disocclusion or geometry border, it is pulled back toward the current frame. Rejecting ghosts and the chromatic edge fringe.
-
-The same box can be applied to the reconstruction. We clamp only the `Co`/`Cg` components and leave luminance untouched. This removes the chromatic fringing while keeping the luminance detail fully crisp.
 
 ## Capture rig
 
