@@ -61,11 +61,16 @@
 By training the model using gbuffer rendering data, we are able to reconstruct images with fine detail and generate a crisp image at high resolution: </p>
 
 <figure>
-  <img width="100%" src="images/lumberyard-bistro-sign.png" alt="Bistro upscale">
+  <img width="100%" src="images/neural-upscaling.png" alt="Bistro upscale">
   <figcaption>Bistro: 960x540 rendering upsampled to 1920x1080 /w neural upscaling</figcaption>
 </figure>
 
-The model extracts latent features in low resolution, then performs a high-resolution reconstruction guided by a full-res G-buffer. Anchoring the network to high-res geometry and material data helps extract sharp details and ensure that textures and edges remain crisp and stable:
+The model extracts latent features in low resolution, then performs a high-resolution reconstruction guided by a full-res G-buffer. Anchoring the network to high-res geometry and material data helps extract texture detail and crisp edges:
+
+<figure>
+  <img width="100%" src="images/lumberyard-bistro-sign.png" alt="Bistro upscale">
+  <figcaption>x3.5 Zoom: Edge reconstruction</figcaption>
+</figure>
 
 ## Low resolution feature extraction
 
@@ -141,10 +146,6 @@ The upscaler will temporally accumulate newly reconstructed subsamples across fr
 <figure>
   <img width="100%" src="images/foliage.png" alt="Foliage upscale">
 </figure>
-<figure>
-  <img width="100%" src="images/lumberyard-bistro.png" alt="Bistro upscale">
-</figure>
-
 
 The motion-warped history color can be stale or disoccluded and "ghosting" can occur when the motion-warped color bilinearly filters two surfaces together. This isssue is resolved by clamping the history sample to the low-resolution input's color neighborhood.
 
