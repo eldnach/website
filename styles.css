@@ -277,6 +277,35 @@ md-block { display: block; }
 
 .post strong { color: var(--cyan); }
 
+/* ===== Tables ===== */
+.post table {
+  border-collapse: collapse;
+  margin: 22px 0;
+  font-size: 13px;
+  width: auto;
+  max-width: 100%;
+  overflow-x: auto;
+  display: block;
+}
+
+.post table thead th {
+  color: var(--cyan);
+  text-align: left;
+  font-weight: 600;
+  background: var(--bg-elev);
+}
+
+.post table th,
+.post table td {
+  border: 1px solid var(--border);
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+
+.post table tbody tr:nth-child(even) {
+  background: var(--bg-panel);
+}
+
 /* ===== Scrollbar ===== */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: var(--bg); }

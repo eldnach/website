@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Eldnach — URP Ray Traced Shadows</title>
+  <title>Eldnach — Variable Rate Shading</title>
   <link rel="shortcut icon" type="image/png" href="images/vfx-logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -28,11 +28,11 @@
       <ul id="article-list">
         <li><a href="index.html">G-buffer Guided Neural Upscaling</a></li>
         <li><a href="neural-lod.html">Neural LOD Selector</a></li>
-        <li><a href="variable-rate-shading.html">Variable Rate Shading</a></li>
+        <li><a href="variable-rate-shading.html" class="active">Variable Rate Shading</a></li>
         <li><a href="ui-defrag.html">UI Defrag and Batch</a></li>
         <li><a href="edge-detection.html">Edge Detection</a></li>
         <li><a href="procedural-vfx.html">Procedural VFX Demo</a></li>
-        <li><a href="urp-raytraced-shadows.html" class="active">URP Ray Traced Shadows</a></li>
+        <li><a href="urp-raytraced-shadows.html">URP Ray Traced Shadows</a></li>
         <li><a href="volumetric-textures.html">Volumetric Textures</a></li>
         <li><a href="indirect-rendering.html">Indirect Rendering</a></li>
         <li><a href="shader-variant-analysis.html">Shader Variant Analysis</a></li>
@@ -45,23 +45,39 @@
 
       <div class="post active">
         <md-block>
-# URP Ray Traced Shadows (Custom Renderer Feature)
-
-Live GDC 2024 demo (~36:00):  <a href="https://gdcvault.com/play/1034719/Unity-Developer-Summit-Rendering-Customization">https://gdcvault.com/play/1034719/Unity-Developer-Summit-Rendering-Customizationt</a>
+# Variable Rate Shading
 
 <p align="left">
-    <img width="70%" src="https://github.com/eldnach/urp-raytraced-shadows-port/blob/main/.github/images/InlineRT.gif?raw=true" alt="InlineRT">
+    <img width="70%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/vrs_edge.gif?raw=true" alt="InlineRT">
 </p>
 
-Github: <a href="https://github.com/eldnach/urp-raytraced-shadows-port">https://github.com/eldnach/urp-raytraced-shadows-port</a>
+Variable Rate Shading for the Unity engine: <a href="https://github.com/eldnach/vrs-edge/tree/main">https://github.com/eldnach/vrs-edge/tree/main</a>
 
-Universal Render Pipeline port of Ionut Nedelcu's Inline Ray Traced Shadows.
+This renderer feature uses the Sentis API to import and execute a Sobel Edge Detection model. The output of the model will be converted to a shading rate image, which can be used to optimize the performance of render passes.
 
-## Requirements
-Supported in Unity 2023.3b and later.
+Setting a uniform (screen-wide) 2x2 shading rate results in visual artifacts when zoomed:
+<p align="left">
+  <img width="70%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/2x2_vrs.png/?raw=true" alt="2x2 shading rate">
+</p>
 
-## Usage
-In the active Universal Renderer Asset settings, add and enable the "Ray Traced Shadow Pass" Renderer Feature.
+By applying edge detection to the shading rate, visual fidelity is greatly improved:
+<p align="left">
+  <img width="70%" src="https://github.com/eldnach/vrs-edge/blob/main/.github/images/edge_vrs.png?raw=true" alt="edge based shading rate">
+</p>
+
+Measuring GPU timing of a Volumetric Lighting pass using VRS:
+
+<table>
+  <thead>
+    <tr><th>Shading Rate</th><th>GPU Time (Volumetrics)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Uniform 1x1</td><td>~6.4 ms</td></tr>
+    <tr><td>Uniform 2x2</td><td>~1.6 ms (75% faster)</td></tr>
+    <tr><td>Uniform 4x4</td><td>~0.5 ms (92% faster)</td></tr>
+    <tr><td>Edge based</td><td>~4.1 ms (35% faster)</td></tr>
+  </tbody>
+</table>
         </md-block>
       </div>
 
